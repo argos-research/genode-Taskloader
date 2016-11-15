@@ -5,7 +5,7 @@
 #include <ram_session/ram_session.h>
 #include <string>
 
-struct Task_manager_session : Genode::Session
+struct Taskloader_session : Genode::Session
 {
 	static const char *service_name() { return "task-manager"; }
 

@@ -1,4 +1,4 @@
-#include "task_manager_session_component.h"
+#include "taskloader_session_component.h"
 #include <timer_session/connection.h>
 #include <base/env.h>
 #include <base/printf.h>
@@ -12,7 +12,7 @@
 
 #include <trace_session/connection.h>
 
-Task_manager_session_component::Task_manager_session_component(Server::Entrypoint& ep) :
+Taskloader_session_component::Taskloader_session_component(Server::Entrypoint& ep) :
 	_ep{ep},
 	_shared{_trace_quota(), _trace_buf_size()},
 	_cap{},
@@ -35,11 +35,11 @@ Task_manager_session_component::Task_manager_session_component(Server::Entrypoin
 	}
 }
 
-Task_manager_session_component::~Task_manager_session_component()
+Taskloader_session_component::~Taskloader_session_component()
 {
 }
 
-void Task_manager_session_component::add_tasks(Genode::Ram_dataspace_capability xml_ds_cap)
+void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xml_ds_cap)
 {
 	Genode::Rm_session* rm = Genode::env()->rm_session();
 	const char* xml = rm->attach(xml_ds_cap);
@@ -54,7 +54,7 @@ void Task_manager_session_component::add_tasks(Genode::Ram_dataspace_capability 
 	rm->detach(xml);
 }
 
-void Task_manager_session_component::clear_tasks()
+void Taskloader_session_component::clear_tasks()
 {
 	PDBG("Clearing %d task%s. Binaries still held.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	stop();
@@ -64,7 +64,7 @@ void Task_manager_session_component::clear_tasks()
 	_shared.tasks.clear();
 }
 
-Genode::Ram_dataspace_capability Task_manager_session_component::binary_ds(Genode::Ram_dataspace_capability name_ds_cap, size_t size)
+Genode::Ram_dataspace_capability Taskloader_session_component::binary_ds(Genode::Ram_dataspace_capability name_ds_cap, size_t size)
 {
 	Genode::Rm_session* rm = Genode::env()->rm_session();
 	const char* name = rm->attach(name_ds_cap);
@@ -78,7 +78,7 @@ Genode::Ram_dataspace_capability Task_manager_session_component::binary_ds(Genod
 	return ds.cap();
 }
 
-void Task_manager_session_component::start()
+void Taskloader_session_component::start()
 {
 	PINF("Starting %d task%s.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	for (Task& task : _shared.tasks)
@@ -87,7 +87,7 @@ void Task_manager_session_component::start()
 	}
 }
 
-void Task_manager_session_component::stop()
+void Taskloader_session_component::stop()
 {
 	PINF("Stopping all tasks.");
 	for (Task& task : _shared.tasks)
@@ -96,13 +96,13 @@ void Task_manager_session_component::stop()
 	}
 }
 
-Genode::Number_of_bytes Task_manager_session_component::_trace_quota()
+Genode::Number_of_bytes Taskloader_session_component::_trace_quota()
 {
 	Genode::Xml_node launchpad_node = Genode::config()->xml_node().sub_node("trace");
 	return launchpad_node.attribute_value<Genode::Number_of_bytes>("quota", 1024 * 1024);
 }
 
-Genode::Number_of_bytes Task_manager_session_component::_trace_buf_size()
+Genode::Number_of_bytes Taskloader_session_component::_trace_buf_size()
 {
 	Genode::Xml_node launchpad_node = Genode::config()->xml_node().sub_node("trace");
 	return launchpad_node.attribute_value<Genode::Number_of_bytes>("buf-size", 64 * 1024);

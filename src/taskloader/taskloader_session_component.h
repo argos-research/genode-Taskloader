@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include <base/signal.h>
-#include <dom0/task_manager_session.h>
+#include <taskloader/taskloader_session.h>
 #include <os/attached_ram_dataspace.h>
 #include <os/server.h>
 #include <root/component.h>
@@ -13,11 +13,11 @@
 
 #include "task.h"
 
-struct Task_manager_session_component : Genode::Rpc_object<Task_manager_session>
+struct Taskloader_session_component : Genode::Rpc_object<Taskloader_session>
 {
 public:
-	Task_manager_session_component(Server::Entrypoint& ep);
-	virtual ~Task_manager_session_component();
+	Taskloader_session_component(Server::Entrypoint& ep);
+	virtual ~Taskloader_session_component();
 
 	// Create tasks in idle state from XML description.
 	void add_tasks(Genode::Ram_dataspace_capability xml_ds_cap);
@@ -46,11 +46,11 @@ protected:
 	static Genode::Number_of_bytes _trace_buf_size();
 };
 
-struct Task_manager_root_component : Genode::Root_component<Task_manager_session_component>
+struct Taskloader_root_component : Genode::Root_component<Taskloader_session_component>
 {
 public:
-	Task_manager_root_component(Server::Entrypoint* ep, Genode::Allocator *allocator) :
-		Genode::Root_component<Task_manager_session_component>(&ep->rpc_ep(), allocator),
+	Taskloader_root_component(Server::Entrypoint* ep, Genode::Allocator *allocator) :
+		Genode::Root_component<Taskloader_session_component>(&ep->rpc_ep(), allocator),
 		_ep(*ep)
 	{
 		PDBG("Creating root component.");
@@ -59,9 +59,9 @@ public:
 protected:
 	Server::Entrypoint& _ep;
 
-	Task_manager_session_component* _create_session(const char *args)
+	Taskloader_session_component* _create_session(const char *args)
 	{
 		PDBG("Creating Task Manager session.");
-		return new (md_alloc()) Task_manager_session_component(_ep);
+		return new (md_alloc()) Taskloader_session_component(_ep);
 	}
 };
