@@ -61,7 +61,7 @@ protected:
 
 	Taskloader_session_component* _create_session(const char *args)
 	{
-		PDBG("Creating Task Manager session.");
+		PDBG("Creating Taskloader session.");
 		return new (md_alloc()) Taskloader_session_component(_ep);
 	}
 };

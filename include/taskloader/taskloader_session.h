@@ -7,7 +7,7 @@
 
 struct Taskloader_session : Genode::Session
 {
-	static const char *service_name() { return "task-manager"; }
+	static const char *service_name() { return "taskloader"; }
 
 	virtual void add_tasks(Genode::Ram_dataspace_capability xml_ds_cap) = 0;
 	virtual void clear_tasks() = 0;
