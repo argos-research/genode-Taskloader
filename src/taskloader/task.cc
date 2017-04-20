@@ -265,6 +265,7 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 	Genode::Trace::Subject_id subjects[MAX_NUM_SUBJECTS];
 	const size_t num_subjects = shared.trace.subjects(subjects, MAX_NUM_SUBJECTS);
 	Genode::Trace::CPU_info info;
+	Genode::Trace::RAM_info ram_info;
 
 	shared.event_log.emplace_back();
 	Event& event = shared.event_log.back();
@@ -278,12 +279,13 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 	for (Genode::Trace::Subject_id* subject = subjects; subject < subjects + num_subjects; ++subject)
 	{
 		info = shared.trace.cpu_info(*subject);
+		ram_info = shared.trace.ram_info(*subject);
 		event.task_infos.emplace_back();
 		Event::Task_info& task_info = event.task_infos.back();
 
 		task_info.id = subject->id;
-		task_info.session = info.session_label().string(),
-		task_info.thread = info.thread_name().string(),
+		task_info.session = ram_info.session_label().string(),
+		task_info.thread = ram_info.thread_name().string(),
 		task_info.state = info.state(),
 		task_info.execution_time = info.execution_time().value;
 
