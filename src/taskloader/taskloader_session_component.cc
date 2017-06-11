@@ -45,11 +45,22 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 	const char* xml = rm->attach(xml_ds_cap);
 	PDBG("Parsing XML file:\n%s", xml);
 	Genode::Xml_node root(xml);
+	Rq_task::Rq_task rq_task;
+	rq_task.deadline = 0;
 
-	const auto fn = [this] (const Genode::Xml_node& node)
+	PDBG("Emplace Tasks in list");
+	const auto fn = [this, &rq_task] (const Genode::Xml_node& node)
 	{
 		_shared.tasks.emplace_back(_ep, _cap, _shared, node);
+
+		rq_task.task_id = _shared.tasks.back()._desc.id;
+		rq_task.wcet = _shared.tasks.back()._desc.execution_time;
+		rq_task.prio = _shared.tasks.back()._desc.priority;
+		rq_task.inter_arrival = _shared.tasks.back()._desc.period;
+
+		sched.new_task(rq_task);
 	};
+
 	root.for_each_sub_node("periodictask", fn);
 	rm->detach(xml);
 }

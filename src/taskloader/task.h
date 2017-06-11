@@ -189,7 +189,9 @@ protected:
 	static Child_destructor_thread _child_destructor;
 
 	Shared_data& _shared;
+public:
 	Description _desc;
+protected:
 
 	Genode::Attached_ram_dataspace _config;
 	const std::string _name;
