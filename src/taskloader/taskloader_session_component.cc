@@ -46,19 +46,20 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 	PDBG("Parsing XML file:\n%s", xml);
 	Genode::Xml_node root(xml);
 	Rq_task::Rq_task rq_task;
-	rq_task.deadline = 0;
 
 	PDBG("Emplace Tasks in list");
 	const auto fn = [this, &rq_task] (const Genode::Xml_node& node)
 	{
 		_shared.tasks.emplace_back(_ep, _cap, _shared, node);
+		_shared.tasks.back().getRqTask(rq_task);
+		PDBG("id: %d, prio: %d, wcet: %d, period: %d", rq_task.task_id, rq_task.prio, rq_task.wcet, rq_task.inter_arrival);
 
-		rq_task.task_id = _shared.tasks.back()._desc.id;
-		rq_task.wcet = _shared.tasks.back()._desc.execution_time;
-		rq_task.prio = _shared.tasks.back()._desc.priority;
-		rq_task.inter_arrival = _shared.tasks.back()._desc.period;
-
-		sched.new_task(rq_task);
+		int result = sched.new_task(rq_task);
+		PDBG("result = %d", result);
+		if (result != 0){
+			PINF("Task with id %d was not accepted by the controller", rq_task.task_id);
+			_shared.tasks.pop_back();
+		}
 	};
 
 	root.for_each_sub_node("periodictask", fn);

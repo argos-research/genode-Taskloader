@@ -13,6 +13,7 @@
 #include <trace_session/connection.h>
 #include <util/noncopyable.h>
 #include <util/xml_node.h>
+#include "sched_controller_session/connection.h"
 
 // Noncopyable because dataspaces might get invalidated.
 class Task : Genode::Noncopyable
@@ -118,6 +119,7 @@ public:
 		unsigned int execution_time;
 		unsigned int critical_time;
 		unsigned int priority;
+		unsigned int deadline;
 		unsigned int period;
 		unsigned int offset;
 		Genode::Number_of_bytes quota;
@@ -167,6 +169,7 @@ public:
 	std::string name() const;
 	bool running() const;
 	const Description& desc() const;
+	void getRqTask(Rq_task::Rq_task& rq_task);
 
 	static Task* task_by_name(std::list<Task>& tasks, const std::string& name);
 	static void log_profile_data(Event::Type type, int id, Shared_data& shared);
@@ -189,9 +192,8 @@ protected:
 	static Child_destructor_thread _child_destructor;
 
 	Shared_data& _shared;
-public:
+
 	Description _desc;
-protected:
 
 	Genode::Attached_ram_dataspace _config;
 	const std::string _name;
