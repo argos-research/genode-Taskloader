@@ -139,7 +139,23 @@ Task::Meta::Meta(const Task& task) :
 Task::Meta_ex::Meta_ex(Task& task) :
 		Meta{task},
 		policy{task},
-		child{task._shared.binaries.at(task._desc.binary_name).cap(),ldso_rom.dataspace(), pd.cap(),&pd, ram.cap(),&ram, cpu.cap(),&cpu, &rm, &task._child_ep, &policy}
+		_initial_thread(cpu, pd.cap(), task._desc.binary_name.c_str()),
+		ldso_rom{"ld.lib.so"},
+		rmc(pd.address_space()),
+		child {
+			task._shared.binaries.at(task._desc.binary_name).cap(),
+			ldso_rom.dataspace(),
+			pd.cap(),
+			pd,
+			ram.cap(),
+			ram,
+			cpu.cap(),
+			_initial_thread,
+			*Genode::env()->rm_session(),
+			rmc,
+			task._child_ep,
+			policy
+		}
 {
 }
 
@@ -479,8 +495,9 @@ void Task::_stop_start_timer()
 bool Task::_check_dynamic_elf(Genode::Attached_ram_dataspace& ds)
 {
 	// Read program header.
-	//Genode::Elf_binary elf((Genode::addr_t)ds.local_addr<char>());
-	//return elf.is_dynamically_linked();
+	/*Genode::Elf_binary elf((Genode::addr_t)ds.local_addr<char>());
+	return elf.is_dynamically_linked();*/
+	return true;
 }
 
 std::string Task::_get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val)

@@ -55,7 +55,6 @@ public:
 	public:
 		Meta(const Task& task);
 
-		static Genode::Rom_connection ldso_rom;
 		Genode::Ram_connection ram;
 		Genode::Cpu_connection cpu;
 		Genode::Rm_connection rm;
@@ -70,6 +69,9 @@ public:
 		Meta_ex(Task& task);
 
 		Child_policy policy;
+		Genode::Child::Initial_thread _initial_thread;
+		Genode::Rom_connection ldso_rom;
+		Genode::Region_map_client rmc;
 		Genode::Child child;
 	};
 
