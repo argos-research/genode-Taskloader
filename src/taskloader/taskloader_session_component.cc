@@ -2,7 +2,6 @@
 #include <timer_session/connection.h>
 #include <base/env.h>
 #include <base/printf.h>
-#include <base/process.h>
 #include <util/xml_node.h>
 #include <util/xml_generator.h>
 
@@ -19,8 +18,8 @@ Taskloader_session_component::Taskloader_session_component(Server::Entrypoint& e
 	_quota{Genode::env()->ram_session()->quota()}
 {
 	// Load dynamic linker for dynamically linked binaries.
-	static Genode::Rom_connection ldso_rom("ld.lib.so");
-	Genode::Process::dynamic_linker(ldso_rom.dataspace());
+	//static Genode::Rom_connection ldso_rom("ld.lib.so");
+	//Genode::Process::dynamic_linker(ldso_rom.dataspace());
 
 	// Names of services provided by the parent.
 	static const char* names[] =
@@ -41,7 +40,7 @@ Taskloader_session_component::~Taskloader_session_component()
 
 void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xml_ds_cap)
 {
-	Genode::Rm_session* rm = Genode::env()->rm_session();
+	Genode::Region_map* rm = Genode::env()->rm_session();
 	const char* xml = rm->attach(xml_ds_cap);
 	PDBG("Parsing XML file:\n%s", xml);
 	Genode::Xml_node root(xml);
@@ -66,7 +65,7 @@ void Taskloader_session_component::clear_tasks()
 
 Genode::Ram_dataspace_capability Taskloader_session_component::binary_ds(Genode::Ram_dataspace_capability name_ds_cap, size_t size)
 {
-	Genode::Rm_session* rm = Genode::env()->rm_session();
+	Genode::Region_map* rm = Genode::env()->rm_session();
 	const char* name = rm->attach(name_ds_cap);
 	PDBG("Reserving %d bytes for binary %s", size, name);
 	Genode::Ram_session* ram = Genode::env()->ram_session();

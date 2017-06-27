@@ -3,7 +3,6 @@
 #include <cstring>
 #include <vector>
 
-#include <base/elf.h>
 #include <base/lock.h>
 
 Task::Child_policy::Child_policy(Task& task) :
@@ -140,7 +139,7 @@ Task::Meta::Meta(const Task& task) :
 Task::Meta_ex::Meta_ex(Task& task) :
 		Meta{task},
 		policy{task},
-		child{task._shared.binaries.at(task._desc.binary_name).cap(), pd.cap(), ram.cap(), cpu.cap(), rm.cap(), &task._child_ep, &policy}
+		child{task._shared.binaries.at(task._desc.binary_name).cap(),ldso_rom.dataspace(), pd.cap(),&pd, ram.cap(),&ram, cpu.cap(),&cpu, &rm, &task._child_ep, &policy}
 {
 }
 
@@ -400,7 +399,7 @@ void Task::_start(unsigned)
 }
 
 Task::Child_destructor_thread::Child_destructor_thread() :
-	Thread{"child_destructor"},
+	Thread_deprecated{"child_destructor"},
 	_lock{},
 	_queued{}
 {
@@ -480,8 +479,8 @@ void Task::_stop_start_timer()
 bool Task::_check_dynamic_elf(Genode::Attached_ram_dataspace& ds)
 {
 	// Read program header.
-	Genode::Elf_binary elf((Genode::addr_t)ds.local_addr<char>());
-	return elf.is_dynamically_linked();
+	//Genode::Elf_binary elf((Genode::addr_t)ds.local_addr<char>());
+	//return elf.is_dynamically_linked();
 }
 
 std::string Task::_get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val)

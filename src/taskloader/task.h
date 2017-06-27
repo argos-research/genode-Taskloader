@@ -2,6 +2,7 @@
 
 #include <list>
 #include <unordered_map>
+#include <elf.h>
 
 #include <base/service.h>
 #include <cap_session/connection.h>
@@ -13,6 +14,7 @@
 #include <trace_session/connection.h>
 #include <util/noncopyable.h>
 #include <util/xml_node.h>
+#include <rm_session/connection.h>
 
 // Noncopyable because dataspaces might get invalidated.
 class Task : Genode::Noncopyable
@@ -53,6 +55,7 @@ public:
 	public:
 		Meta(const Task& task);
 
+		static Genode::Rom_connection ldso_rom;
 		Genode::Ram_connection ram;
 		Genode::Cpu_connection cpu;
 		Genode::Rm_connection rm;
@@ -172,7 +175,7 @@ public:
 	static void log_profile_data(Event::Type type, int id, Shared_data& shared);
 
 protected:
-	class Child_destructor_thread : Genode::Thread<2*4096>
+	class Child_destructor_thread : Genode::Thread_deprecated<2*4096>
 	{
 	public:
 		Child_destructor_thread();
