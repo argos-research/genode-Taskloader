@@ -377,7 +377,7 @@ void Task::_start(unsigned)
 	Genode::Attached_ram_dataspace& ds = bin_it->second;
 
 	++_iteration;
-	PINF("Starting %s linked task %s with quota %u and priority %u in iteration %d", _check_dynamic_elf(ds) ? "dynamically" : "statically", _name.c_str(), (size_t)_desc.quota, _desc.priority, _iteration);
+	PINF("Starting task %s with quota %u and priority %u in iteration %d", _name.c_str(), (size_t)_desc.quota, _desc.priority, _iteration);
 
 	if ((size_t)_desc.quota < 512 * 1024)
 	{
@@ -490,14 +490,6 @@ void Task::_stop_start_timer()
 {
 	_start_timer.sigh(_idle_dispatcher);
 	_start_timer.trigger_once(0);
-}
-
-bool Task::_check_dynamic_elf(Genode::Attached_ram_dataspace& ds)
-{
-	// Read program header.
-	/*Genode::Elf_binary elf((Genode::addr_t)ds.local_addr<char>());
-	return elf.is_dynamically_linked();*/
-	return true;
 }
 
 std::string Task::_get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val)

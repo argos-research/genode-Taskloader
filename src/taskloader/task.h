@@ -229,9 +229,6 @@ protected:
 	void _stop_kill_timer();
 	void _stop_start_timer();
 
-	// Check if the provided ELF is dynamic by reading the header.
-	static bool _check_dynamic_elf(Genode::Attached_ram_dataspace& ds);
-
 	// Get XML node value (not attribute) if it exists.
 	template <typename T>
 	static T _get_node_value(const Genode::Xml_node& config_node, const char* type, T default_val = T())
