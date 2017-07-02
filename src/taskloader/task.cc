@@ -198,21 +198,22 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 {
 	const Genode::Xml_node& config_node = node.sub_node("config");
 	std::strncpy(_config.local_addr<char>(), config_node.addr(), config_node.size());
-	PDBG("id: %d, prio: %d, deadline: %d, wcet: %d, period: %d", _desc.id, _desc.priority, _desc.deadline, _desc.execution_time, _desc.period);
+	PDBG("id: %u, prio: %u, deadline: %u, wcet: %u, period: %u", _desc.id, _desc.priority, _desc.deadline, _desc.execution_time, _desc.period);
 }
 
 Task::~Task()
 {
 }
 
-void Task::getRqTask(Rq_task::Rq_task& rq_task)
+Rq_task::Rq_task Task::getRqTask()
 {
-		rq_task.task_id = _desc.id;
-		rq_task.wcet = _desc.execution_time;
-		rq_task.prio = _desc.priority;
-		rq_task.inter_arrival = _desc.period;
-		rq_task.deadline = _desc.deadline;
-		PDBG("Rq_task: id: %d, prio: %d, wcet: %d, period: %d, deadline: %d", rq_task.task_id, rq_task.prio, rq_task.wcet, rq_task.inter_arrival, rq_task.deadline);
+	Rq_task::Rq_task rq_task;
+	rq_task.task_id = _desc.id;
+	rq_task.wcet = _desc.execution_time;
+	rq_task.prio = _desc.priority;
+	rq_task.inter_arrival = _desc.period;
+	rq_task.deadline = _desc.deadline;
+	return rq_task;
 }
 
 void Task::run()

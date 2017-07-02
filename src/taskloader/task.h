@@ -169,7 +169,7 @@ public:
 	std::string name() const;
 	bool running() const;
 	const Description& desc() const;
-	void getRqTask(Rq_task::Rq_task& rq_task);
+	Rq_task::Rq_task getRqTask();
 
 	static Task* task_by_name(std::list<Task>& tasks, const std::string& name);
 	static void log_profile_data(Event::Type type, int id, Shared_data& shared);

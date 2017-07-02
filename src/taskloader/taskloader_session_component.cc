@@ -51,10 +51,8 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 	const auto fn = [this, &rq_task] (const Genode::Xml_node& node)
 	{
 		_shared.tasks.emplace_back(_ep, _cap, _shared, node);
-		_shared.tasks.back().getRqTask(rq_task);
-		PDBG("id: %d, prio: %d, wcet: %d, period: %d", rq_task.task_id, rq_task.prio, rq_task.wcet, rq_task.inter_arrival);
-
-		int result = sched.new_task(rq_task);
+		//Add task to Controller to perform a schedulability test
+		int result = sched.new_task(_shared.tasks.back().getRqTask());
 		PDBG("result = %d", result);
 		if (result != 0){
 			PINF("Task with id %d was not accepted by the controller", rq_task.task_id);
