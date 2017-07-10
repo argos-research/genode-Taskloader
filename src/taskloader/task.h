@@ -174,6 +174,9 @@ public:
 	static Task* task_by_name(std::list<Task>& tasks, const std::string& name);
 	static void log_profile_data(Event::Type type, int id, Shared_data& shared);
 
+	void setSchedulable(bool schedulable);
+	bool isSchedulable();
+
 protected:
 	class Child_destructor_thread : Genode::Thread<2*4096>
 	{
@@ -246,4 +249,6 @@ protected:
 
 	// Get XML node string value (not attribute) if it exists.
 	static std::string _get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val = "");
+private:
+	bool _schedulable;
 };

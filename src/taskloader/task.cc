@@ -194,7 +194,8 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 		_kill_dispatcher{ep, *this, &Task::_kill_crit},
 		_idle_dispatcher{ep, *this, &Task::_idle},
 		_child_ep{&cap, 12 * 1024, _name.c_str(), false},
-		_meta{nullptr}
+		_meta{nullptr},
+		_schedulable(true)
 {
 	const Genode::Xml_node& config_node = node.sub_node("config");
 	std::strncpy(_config.local_addr<char>(), config_node.addr(), config_node.size());
@@ -203,6 +204,16 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 
 Task::~Task()
 {
+}
+
+void Task::setSchedulable(bool schedulable)
+{
+	_schedulable = schedulable;
+}
+
+bool Task::isSchedulable()
+{
+	return _schedulable;
 }
 
 Rq_task::Rq_task Task::getRqTask()

@@ -56,7 +56,10 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 		PDBG("result = %d", result);
 		if (result != 0){
 			PINF("Task with id %d was not accepted by the controller", rq_task.task_id);
-			_shared.tasks.pop_back();
+			_shared.tasks.back().setSchedulable(false);
+		}
+		else{
+			_shared.tasks.back().setSchedulable(true);
 		}
 	};
 
@@ -93,7 +96,10 @@ void Taskloader_session_component::start()
 	PINF("Starting %d task%s.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	for (Task& task : _shared.tasks)
 	{
-		task.run();
+		if (task.isSchedulable())
+		{
+			task.run();
+		}
 	}
 }
 
@@ -102,7 +108,10 @@ void Taskloader_session_component::stop()
 	PINF("Stopping all tasks.");
 	for (Task& task : _shared.tasks)
 	{
-		task.stop();
+		if (task.isSchedulable())
+		{
+			task.stop();
+		}
 	}
 }
 
