@@ -55,7 +55,8 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 	{
 		_shared.tasks.emplace_back(_ep, _cap, _shared, node);
 		//Add task to Controller to perform a schedulability test for core 1
-		int result = sched.new_task(_shared.tasks.back().getRqTask(), 1);
+		rq_task = _shared.tasks.back().getRqTask();
+		int result = sched.new_task(rq_task, 0);
 		PDBG("result = %d", result);
 		if (result != 0){
 			PINF("Task with id %d was not accepted by the controller", rq_task.task_id);
