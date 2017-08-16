@@ -41,7 +41,7 @@ void Task::Child_policy::exit(int exit_value)
 
 	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 
-	Task::_child_destructor.submit_for_destruction(_task);
+	//Task::_child_destructor.submit_for_destruction(_task);
 }
 
 const char* Task::Child_policy::name() const
