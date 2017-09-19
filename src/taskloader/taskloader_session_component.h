@@ -10,6 +10,7 @@
 #include <root/component.h>
 #include <timer_session/connection.h>
 #include <util/string.h>
+#include "sched_controller_session/connection.h"
 
 #include "task.h"
 
@@ -44,6 +45,9 @@ protected:
 
 	static Genode::Number_of_bytes _trace_quota();
 	static Genode::Number_of_bytes _trace_buf_size();
+
+private:
+	Sched_controller::Connection sched;
 };
 
 struct Taskloader_root_component : Genode::Root_component<Taskloader_session_component>

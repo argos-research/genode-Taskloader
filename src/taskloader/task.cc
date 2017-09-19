@@ -194,6 +194,7 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 			_get_node_value<unsigned int>(node, "executiontime"),
 			_get_node_value<unsigned int>(node, "criticaltime"),
 			_get_node_value<unsigned int>(node, "priority"),
+			_get_node_value<unsigned int>(node, "deadline"),
 			_get_node_value<unsigned int>(node, "period"),
 			_get_node_value<unsigned int>(node, "offset"),
 			_get_node_value<Genode::Number_of_bytes>(node, "quota"),
@@ -208,14 +209,38 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 		_kill_dispatcher{ep, *this, &Task::_kill_crit},
 		_idle_dispatcher{ep, *this, &Task::_idle},
 		_child_ep{&cap, 12 * 1024, _name.c_str(), false},
-		_meta{nullptr}
+		_meta{nullptr},
+		_schedulable(true)
 {
 	const Genode::Xml_node& config_node = node.sub_node("config");
 	std::strncpy(_config.local_addr<char>(), config_node.addr(), config_node.size());
+	PINF("id: %u, name: %s, prio: %u, deadline: %u, wcet: %u, period: %u", _desc.id, _name.c_str(), _desc.priority, _desc.deadline, _desc.execution_time, _desc.period);
 }
 
 Task::~Task()
 {
+}
+
+void Task::setSchedulable(bool schedulable)
+{
+	_schedulable = schedulable;
+}
+
+bool Task::isSchedulable()
+{
+	return _schedulable;
+}
+
+Rq_task::Rq_task Task::getRqTask()
+{
+	Rq_task::Rq_task rq_task;
+	rq_task.task_id = _desc.id;
+	rq_task.wcet = _desc.execution_time;
+	rq_task.prio = _desc.priority;
+	rq_task.inter_arrival = _desc.period;
+	rq_task.deadline = _desc.deadline;
+	strcpy(rq_task.name, _name.c_str());
+	return rq_task;
 }
 
 void Task::run()
