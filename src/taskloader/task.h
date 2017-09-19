@@ -13,6 +13,7 @@
 #include <trace_session/connection.h>
 #include <util/noncopyable.h>
 #include <util/xml_node.h>
+#include "sched_controller_session/connection.h"
 
 // Noncopyable because dataspaces might get invalidated.
 class Task : Genode::Noncopyable
@@ -118,6 +119,7 @@ public:
 		unsigned int execution_time;
 		unsigned int critical_time;
 		unsigned int priority;
+		unsigned int deadline;
 		unsigned int period;
 		unsigned int offset;
 		Genode::Number_of_bytes quota;
@@ -167,9 +169,13 @@ public:
 	std::string name() const;
 	bool running() const;
 	const Description& desc() const;
+	Rq_task::Rq_task getRqTask();
 
 	static Task* task_by_name(std::list<Task>& tasks, const std::string& name);
 	static void log_profile_data(Event::Type type, int id, Shared_data& shared);
+
+	void setSchedulable(bool schedulable);
+	bool isSchedulable();
 
 protected:
 	class Child_destructor_thread : Genode::Thread<2*4096>
@@ -189,6 +195,7 @@ protected:
 	static Child_destructor_thread _child_destructor;
 
 	Shared_data& _shared;
+
 	Description _desc;
 
 	Genode::Attached_ram_dataspace _config;
@@ -242,4 +249,6 @@ protected:
 
 	// Get XML node string value (not attribute) if it exists.
 	static std::string _get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val = "");
+private:
+	bool _schedulable;
 };

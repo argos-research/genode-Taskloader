@@ -43,13 +43,29 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 {
 	Genode::Rm_session* rm = Genode::env()->rm_session();
 	const char* xml = rm->attach(xml_ds_cap);
-	PDBG("Parsing XML file:\n%s", xml);
+	PINF("Parsing XML file:\n%s", xml);
 	Genode::Xml_node root(xml);
+	Rq_task::Rq_task rq_task;
 
-	const auto fn = [this] (const Genode::Xml_node& node)
+	//Update rq_buffer before adding tasks for online analyses to core 1
+	sched.update_rq_buffer(1);
+
+	const auto fn = [this, &rq_task] (const Genode::Xml_node& node)
 	{
 		_shared.tasks.emplace_back(_ep, _cap, _shared, node);
+		//Add task to Controller to perform a schedulability test for core 1
+		rq_task = _shared.tasks.back().getRqTask();
+		int result = sched.new_task(rq_task, 1);
+		if (result != 0){
+			PINF("Task with id %d was not accepted by the controller", rq_task.task_id);
+			_shared.tasks.back().setSchedulable(false);
+		}
+		else{
+			PINF("Task with id %d was accepted by the controller", rq_task.task_id);
+			_shared.tasks.back().setSchedulable(true);
+		}
 	};
+
 	root.for_each_sub_node("periodictask", fn);
 	rm->detach(xml);
 }
@@ -83,7 +99,10 @@ void Taskloader_session_component::start()
 	PINF("Starting %d task%s.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	for (Task& task : _shared.tasks)
 	{
-		task.run();
+		if (task.isSchedulable())
+		{
+			task.run();
+		}
 	}
 }
 
@@ -92,7 +111,10 @@ void Taskloader_session_component::stop()
 	PINF("Stopping all tasks.");
 	for (Task& task : _shared.tasks)
 	{
-		task.stop();
+		if (task.isSchedulable())
+		{
+			task.stop();
+		}
 	}
 }
 
