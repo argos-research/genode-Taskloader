@@ -14,6 +14,7 @@
 #include <util/noncopyable.h>
 #include <util/xml_node.h>
 #include "sched_controller_session/connection.h"
+#include <base/affinity.h>
 
 // Noncopyable because dataspaces might get invalidated.
 class Task : Genode::Noncopyable

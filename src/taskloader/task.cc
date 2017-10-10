@@ -123,7 +123,7 @@ void Task::Child_policy::unregister_services()
 
 Task::Meta::Meta(const Task& task) :
 	ram{},
-	cpu{task.name().c_str(), 0, 500},
+	cpu{task.name().c_str(), -(long int)task._desc.priority, (long int)task._desc.deadline, Genode::Affinity(Genode::Affinity::Space(2,1),Genode::Affinity::Location(2,0))},
 	rm{},
 	pd{},
 	server{ram}
