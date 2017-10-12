@@ -252,27 +252,33 @@ void Task::run()
 
 	if (_desc.period > 0)
 	{
-		//_start_timer.trigger_periodic(_desc.period * 1000);
-		Genode::String<32> task_name(_name.c_str());
-		int starting_permission;
-		for(unsigned int i = 1; i <= _desc.number_of_jobs; ++i)
+		if(_desc.number_of_jobs == 0)
 		{
-			starting_permission = _controller->scheduling_allowed(task_name);
+			_start_timer.trigger_periodic(_desc.period * 1000);
+		}
+		else
+		{
+			Genode::String<32> task_name(_name.c_str());
+			int starting_permission;
+			for(unsigned int i = 1; i <= _desc.number_of_jobs; ++i)
+			{
+				starting_permission = _controller->scheduling_allowed(task_name);
+				if(starting_permission > 0)
+				{
+					_start_timer.trigger_once(_desc.period * 1000);
+					PINF("Taskloader (task.run): Start job %d of task %s.", i, _name.c_str());
+				}
+				if(starting_permission < 0)
+				{
+					PWRN("Taskloader (task.run): Task %s (job %d) is not recognized by optimizer.", _name.c_str(), i);
+					break;
+				}
+			}
 			if(starting_permission > 0)
 			{
-				_start_timer.trigger_once(_desc.period * 1000);
-				PINF("Taskloader (task.run): Start job %d of task %s.", i, _name.c_str());
+				PINF("Taskloader (task.run): Last job (%d) of task %s started.", _desc.number_of_jobs, _name.c_str());
+				_controller->last_job_started(task_name);
 			}
-			if(starting_permission < 0)
-			{
-				PWRN("Taskloader (task.run): Task %s (job %d) is not recognized by optimizer.", _name.c_str(), i);
-				break;
-			}
-		}
-		if(starting_permission > 0)
-		{
-			PINF("Taskloader (task.run): Last job (%d) of task %s started.", _desc.number_of_jobs, _name.c_str());
-			_controller->last_job_started(task_name);
 		}
 	}
 	else
