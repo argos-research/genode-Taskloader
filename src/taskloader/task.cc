@@ -262,7 +262,12 @@ void Task::run()
 			int starting_permission;
 			for(unsigned int i = 1; i <= _desc.number_of_jobs; ++i)
 			{
+				// perform optimization (call this function now, since optimizer is no individual thread)
+				_controller->optimize(task_name);
+				
+				// determine result of optimization
 				starting_permission = _controller->scheduling_allowed(task_name);
+				
 				if(starting_permission > 0)
 				{
 					_start_timer.trigger_once(_desc.period * 1000);
