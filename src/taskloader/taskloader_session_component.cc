@@ -52,7 +52,7 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 
 	const auto fn = [this, &rq_task] (const Genode::Xml_node& node)
 	{
-		_shared.tasks.emplace_back(_ep, _cap, _shared, node);
+		_shared.tasks.emplace_back(_ep, _cap, _shared, node, &sched);
 		//Add task to Controller to perform a schedulability test for core 1
 		rq_task = _shared.tasks.back().getRqTask();
 		int result = sched.new_task(rq_task, 1);

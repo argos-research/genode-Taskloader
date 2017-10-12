@@ -172,7 +172,7 @@ Task::Shared_data::Shared_data(size_t trace_quota, size_t trace_buf_size) :
 
 
 
-Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& shared, const Genode::Xml_node& node) :
+Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& shared, const Genode::Xml_node& node, Sched_controller::Connection* ctrl) :
 		_shared(shared),
 		_desc{
 			_get_node_value<unsigned int>(node, "id"),
@@ -182,6 +182,7 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 			_get_node_value<unsigned int>(node, "deadline"),
 			_get_node_value<unsigned int>(node, "period"),
 			_get_node_value<unsigned int>(node, "offset"),
+			_get_node_value<unsigned int>(node, "numberofjobs"),
 			_get_node_value<Genode::Number_of_bytes>(node, "quota"),
 			_get_node_value(node, "pkg", 32, "")},
 		_config{Genode::env()->ram_session(), node.sub_node("config").size()},
@@ -195,6 +196,7 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 		_idle_dispatcher{ep, *this, &Task::_idle},
 		_child_ep{&cap, 12 * 1024, _name.c_str(), false},
 		_meta{nullptr},
+		_controller(ctrl),
 		_schedulable(true)
 {
 	const Genode::Xml_node& config_node = node.sub_node("config");
@@ -225,6 +227,18 @@ Rq_task::Rq_task Task::getRqTask()
 	rq_task.inter_arrival = _desc.period;
 	rq_task.deadline = _desc.deadline;
 	strcpy(rq_task.name, _name.c_str());
+	
+	if((_desc.priority - 128) == 0)
+	{
+		rq_task.task_class = Rq_task::Task_class::lo;
+		rq_task.task_strategy = Rq_task::Task_strategy::deadline;
+	}
+	else
+	{
+		rq_task.task_class = Rq_task::Task_class::hi;
+		rq_task.task_strategy = Rq_task::Task_strategy::priority;
+	}
+	
 	return rq_task;
 }
 
@@ -238,7 +252,28 @@ void Task::run()
 
 	if (_desc.period > 0)
 	{
-		_start_timer.trigger_periodic(_desc.period * 1000);
+		//_start_timer.trigger_periodic(_desc.period * 1000);
+		Genode::String<32> task_name(_name.c_str());
+		int starting_permission;
+		for(unsigned int i = 1; i <= _desc.number_of_jobs; ++i)
+		{
+			starting_permission = _controller->scheduling_allowed(task_name);
+			if(starting_permission > 0)
+			{
+				_start_timer.trigger_once(_desc.period * 1000);
+				PINF("Taskloader (task.run): Start job %d of task %s.", i, _name.c_str());
+			}
+			if(starting_permission < 0)
+			{
+				PWRN("Taskloader (task.run): Task %s (job %d) is not recognized by optimizer.", _name.c_str(), i);
+				break;
+			}
+		}
+		if(starting_permission > 0)
+		{
+			PINF("Taskloader (task.run): Last job (%d) of task %s started.", _desc.number_of_jobs, _name.c_str());
+			_controller->last_job_started(task_name);
+		}
 	}
 	else
 	{

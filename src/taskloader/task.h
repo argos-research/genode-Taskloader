@@ -123,6 +123,7 @@ public:
 		unsigned int deadline;
 		unsigned int period;
 		unsigned int offset;
+		unsigned int number_of_jobs;
 		Genode::Number_of_bytes quota;
 		std::string binary_name;
 	};
@@ -160,7 +161,7 @@ public:
 		Genode::Lock log_lock;
 	};
 
-	Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& shared, const Genode::Xml_node& node);
+	Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& shared, const Genode::Xml_node& node, Sched_controller::Connection* ctrl);
 
 	// Warning: The Task dtor may be empty but tasks should be stopped before destroying them, preferably with a short wait inbetween to allow the child destructor thread to kill them properly.
 	virtual ~Task();
@@ -252,4 +253,5 @@ protected:
 	static std::string _get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val = "");
 private:
 	bool _schedulable;
+	Sched_controller::Connection* _controller;
 };
