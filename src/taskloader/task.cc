@@ -262,12 +262,22 @@ void Task::run()
 			int starting_permission;
 			for(unsigned int i = 1; i <= _desc.number_of_jobs; ++i)
 			{
-				// perform optimization (call this function now, since optimizer is no individual thread)
-				_controller->optimize(task_name);
 				
-				// determine result of optimization
-				starting_permission = _controller->scheduling_allowed(task_name);
+				// if task is edf task, query monitor, else start job
+				if((_desc.priority - 128) == 0)
+				{
+					PINF("Taskloader (task.run): Call optimizer due to job %d of task %s.", i, _name.c_str());
+					// perform optimization (call this function now, since optimizer is no individual thread)
+					_controller->optimize(task_name);
 				
+					// determine result of optimization
+					starting_permission = _controller->scheduling_allowed(task_name);
+					
+				}
+				else
+				{
+					starting_permission = 1;
+				}
 				if(starting_permission > 0)
 				{
 					_start_timer.trigger_once(_desc.period * 1000);
@@ -279,7 +289,7 @@ void Task::run()
 					break;
 				}
 			}
-			if(starting_permission > 0)
+			if((starting_permission > 0) && ((_desc.priority - 128) == 0))
 			{
 				PINF("Taskloader (task.run): Last job (%d) of task %s started.", _desc.number_of_jobs, _name.c_str());
 				_controller->last_job_started(task_name);
