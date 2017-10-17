@@ -40,7 +40,7 @@ void Task::Child_policy::exit(int exit_value)
 
 	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 
-	//Task::_child_destructor.submit_for_destruction(_task);
+	Task::_child_destructor.submit_for_destruction(_task);
 }
 
 const char* Task::Child_policy::name() const
@@ -122,7 +122,7 @@ void Task::Child_policy::unregister_services()
 
 Task::Meta::Meta(const Task& task) :
 	ram{},
-	cpu{task.name().c_str(), 0, 500},
+	cpu{task.name().c_str(), task._desc.priority, task._desc.deadline, Genode::Affinity(Genode::Affinity::Space(2,1), Genode::Affinity::Location(1,0))},
 	rm{},
 	pd{},
 	server{ram}
