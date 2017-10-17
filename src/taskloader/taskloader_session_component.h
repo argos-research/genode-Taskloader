@@ -35,14 +35,19 @@ public:
 	// Stop all tasks.
 	void stop();
 
+	Genode::Ram_dataspace_capability profile_data();
+
 	
 protected:
 	Server::Entrypoint& _ep;
 	Task::Shared_data _shared;
 	Genode::Cap_connection _cap;
 
+	Genode::Attached_ram_dataspace _profile_data;
+
 	size_t _quota;
 
+	static Genode::Number_of_bytes _profile_ds_size();
 	static Genode::Number_of_bytes _trace_quota();
 	static Genode::Number_of_bytes _trace_buf_size();
 

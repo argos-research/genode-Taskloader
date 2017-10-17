@@ -15,6 +15,7 @@ Taskloader_session_component::Taskloader_session_component(Server::Entrypoint& e
 	_ep{ep},
 	_shared{_trace_quota(), _trace_buf_size()},
 	_cap{},
+	_profile_data{Genode::env()->ram_session(), _profile_ds_size()},
 	_quota{Genode::env()->ram_session()->quota()}
 {
 	// Load dynamic linker for dynamically linked binaries.
@@ -117,6 +118,40 @@ void Taskloader_session_component::stop()
 	}
 }
 
+Genode::Ram_dataspace_capability Taskloader_session_component::profile_data()
+{
+	static Genode::Trace::Connection trace(1024*4096, 64*4096, 0);
+
+	Genode::Trace::Subject_id subjects[32];
+	size_t num_subjects = trace.subjects(subjects, 32);
+
+
+	//Task::log_profile_data(Task::Event::EXTERNAL, -1, _shared);
+
+	// Xml_generator directly writes XML data into the buffer on construction, explaining the heavy recursion here.
+	//PDBG("Generating event log. %d events have occurred.", _shared.event_log.size());
+	Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
+	{
+
+		xml.node("events", [&]()
+		{
+			for (const Task::Event& event : _shared.event_log)
+			{
+				xml.node("event", [&]()
+				{
+					xml.attribute("type", Task::Event::type_name(event.type));
+					xml.attribute("task-id", std::to_string(event.task_id).c_str());
+					xml.attribute("time-stamp", std::to_string(event.time_stamp).c_str());
+				});
+			}
+		});
+	});
+
+	_shared.event_log.clear();
+
+	return _profile_data.cap();
+}
+
 Genode::Number_of_bytes Taskloader_session_component::_trace_quota()
 {
 	Genode::Xml_node launchpad_node = Genode::config()->xml_node().sub_node("trace");
@@ -127,4 +162,10 @@ Genode::Number_of_bytes Taskloader_session_component::_trace_buf_size()
 {
 	Genode::Xml_node launchpad_node = Genode::config()->xml_node().sub_node("trace");
 	return launchpad_node.attribute_value<Genode::Number_of_bytes>("buf-size", 64 * 1024);
+}
+
+Genode::Number_of_bytes Taskloader_session_component::_profile_ds_size()
+{
+	Genode::Xml_node launchpad_node = Genode::config()->xml_node().sub_node("profile");
+	return launchpad_node.attribute_value<Genode::Number_of_bytes>("ds-size", 128 * 1024);
 }

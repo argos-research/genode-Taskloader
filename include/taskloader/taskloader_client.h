@@ -34,4 +34,9 @@ struct Taskloader_session_client : Genode::Rpc_client<Taskloader_session>
 		call<Rpc_stop>();
 	}
 
+	Genode::Ram_dataspace_capability profile_data()
+	{
+		return call<Rpc_profile_data>();
+	}
+
 };

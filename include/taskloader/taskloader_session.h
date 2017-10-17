@@ -14,6 +14,7 @@ struct Taskloader_session : Genode::Session
 	virtual Genode::Ram_dataspace_capability binary_ds(Genode::Ram_dataspace_capability name_ds_cap, size_t size) = 0;
 	virtual void start() = 0;
 	virtual void stop() = 0;
+	virtual Genode::Ram_dataspace_capability profile_data() = 0;
 
 	/*******************
 	 ** RPC interface **
@@ -23,8 +24,8 @@ struct Taskloader_session : Genode::Session
 	GENODE_RPC(Rpc_binary_ds, Genode::Ram_dataspace_capability, binary_ds, Genode::Ram_dataspace_capability, size_t);
 	GENODE_RPC(Rpc_start, void, start);
 	GENODE_RPC(Rpc_stop, void, stop);
-	
+	GENODE_RPC(Rpc_profile_data, Genode::Ram_dataspace_capability, profile_data);
 
 
-	GENODE_RPC_INTERFACE(Rpc_add_tasks, Rpc_clear_tasks, Rpc_binary_ds, Rpc_start, Rpc_stop);
+	GENODE_RPC_INTERFACE(Rpc_add_tasks, Rpc_clear_tasks, Rpc_binary_ds, Rpc_start, Rpc_stop, Rpc_profile_data);
 };
