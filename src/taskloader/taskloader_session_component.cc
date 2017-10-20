@@ -114,6 +114,7 @@ void Taskloader_session_component::stop()
 		if (task.isSchedulable())
 		{
 			task.stop();
+			Task::_child_destructor.submit_for_destruction(&task);
 		}
 	}
 }

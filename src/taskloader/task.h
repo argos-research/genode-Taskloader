@@ -197,8 +197,6 @@ protected:
 		void entry() override;
 	};
 
-	static Child_destructor_thread _child_destructor;
-
 	Shared_data& _shared;
 
 	Description _desc;
@@ -253,4 +251,6 @@ protected:
 	static std::string _get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val = "");
 private:
 	bool _schedulable;
+public:
+	static Child_destructor_thread _child_destructor;
 };
