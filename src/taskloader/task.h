@@ -16,6 +16,7 @@
 #include <util/xml_node.h>
 #include <rm_session/connection.h>
 #include "sched_controller_session/connection.h"
+#include <base/affinity.h>
 
 // Noncopyable because dataspaces might get invalidated.
 class Task : Genode::Noncopyable
@@ -127,6 +128,7 @@ public:
 		unsigned int deadline;
 		unsigned int period;
 		unsigned int offset;
+		unsigned int number_of_jobs;
 		Genode::Number_of_bytes quota;
 		std::string binary_name;
 	};
@@ -164,7 +166,7 @@ public:
 		Genode::Lock log_lock;
 	};
 
-	Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& shared, const Genode::Xml_node& node);
+	Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& shared, const Genode::Xml_node& node, Sched_controller::Connection* ctrl);
 
 	// Warning: The Task dtor may be empty but tasks should be stopped before destroying them, preferably with a short wait inbetween to allow the child destructor thread to kill them properly.
 	virtual ~Task();
@@ -253,4 +255,5 @@ private:
 	bool _schedulable;
 public:
 	static Child_destructor_thread _child_destructor;
+	Sched_controller::Connection* _controller;
 };
