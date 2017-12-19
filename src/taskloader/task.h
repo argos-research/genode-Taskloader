@@ -1,5 +1,7 @@
 #pragma once
 
+#include <dom0-HW/dom0_connection.h>
+
 #include <list>
 #include <unordered_map>
 #include <elf.h>
@@ -16,6 +18,7 @@
 #include <util/xml_node.h>
 #include <rm_session/connection.h>
 #include "sched_controller_session/connection.h"
+//#include <dom0-HW/dom0_connection.h>
 
 // Noncopyable because dataspaces might get invalidated.
 class Task : Genode::Noncopyable
