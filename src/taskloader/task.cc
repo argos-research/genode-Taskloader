@@ -5,6 +5,8 @@
 
 #include <base/lock.h>
 
+//#include <dom0-HW/dom0_connection.h>
+
 Task::Child_policy::Child_policy(Task& task) :
 		_task{&task},
 		_labeling_policy{task.name().c_str()},
@@ -40,6 +42,8 @@ void Task::Child_policy::exit(int exit_value)
 
 	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 
+	Dom0_server::Connection dom0;
+	dom0.send_profile(name());
 	//Task::_child_destructor.submit_for_destruction(_task);
 }
 
