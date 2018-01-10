@@ -41,10 +41,11 @@ void Task::Child_policy::exit(int exit_value)
 	}
 
 	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
+	Task::_child_destructor.submit_for_destruction(_task);
 
 	Dom0_server::Connection dom0;
 	dom0.send_profile(name());
-	//Task::_child_destructor.submit_for_destruction(_task);
+	
 }
 
 const char* Task::Child_policy::name() const
@@ -202,6 +203,7 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 			_get_node_value<unsigned int>(node, "period"),
 			_get_node_value<unsigned int>(node, "offset"),
 			_get_node_value<unsigned int>(node, "numberofjobs"),
+			_get_node_value(node, "group", 32, ""),
 			_get_node_value<Genode::Number_of_bytes>(node, "quota"),
 			_get_node_value(node, "pkg", 32, "")},
 		_config{Genode::env()->ram_session(), node.sub_node("config").size()},
@@ -245,9 +247,10 @@ Rq_task::Rq_task Task::getRqTask()
 	rq_task.prio = _desc.priority;
 	rq_task.inter_arrival = _desc.period;
 	rq_task.deadline = _desc.deadline;
+	strcpy(rq_task.group, _desc.group.c_str());
 	strcpy(rq_task.name, _name.c_str());
 	
-	if((_desc.priority - 128) == 0)
+	if(_desc.deadline > 0)
 	{
 		rq_task.task_class = Rq_task::Task_class::lo;
 		rq_task.task_strategy = Rq_task::Task_strategy::deadline;
@@ -273,7 +276,7 @@ void Task::run()
 	{
 		if(_desc.number_of_jobs == 0)
 		{
-			_start_timer.trigger_periodic(_desc.period * 1000);
+			_start_timer.trigger_periodic(_desc.period * 1000000);
 		}
 		else
 		{
@@ -283,11 +286,11 @@ void Task::run()
 			{
 				
 				// if task is edf task, query monitor, else start job
-				if((_desc.priority - 128) == 0)
+				if(_desc.deadline > 0)
 				{
 					PINF("Taskloader (task.run): Call optimizer due to job %d of task %s.", i, _name.c_str());
 					// perform optimization (call this function now, since optimizer is no individual thread)
-					_controller->optimize(task_name);
+					//_controller->optimize(task_name);
 				
 					// determine result of optimization
 					starting_permission = _controller->scheduling_allowed(task_name);
@@ -299,7 +302,8 @@ void Task::run()
 				}
 				if(starting_permission > 0)
 				{
-					_start_timer.trigger_once(_desc.period * 1000);
+					_start(0);
+					_start_timer.msleep(_desc.period * 1000);
 					PINF("Taskloader (task.run): Start job %d of task %s.", i, _name.c_str());
 				}
 				if(starting_permission < 0)
@@ -308,7 +312,7 @@ void Task::run()
 					break;
 				}
 			}
-			if((starting_permission > 0) && ((_desc.priority - 128) == 0))
+			if((starting_permission > 0) && (_desc.deadline > 0))
 			{
 				PINF("Taskloader (task.run): Last job (%d) of task %s started.", _desc.number_of_jobs, _name.c_str());
 				_controller->last_job_started(task_name);

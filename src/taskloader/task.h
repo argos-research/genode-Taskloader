@@ -132,6 +132,7 @@ public:
 		unsigned int period;
 		unsigned int offset;
 		unsigned int number_of_jobs;
+		std::string group;
 		Genode::Number_of_bytes quota;
 		std::string binary_name;
 	};
