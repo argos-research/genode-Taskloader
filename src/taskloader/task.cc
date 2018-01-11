@@ -39,12 +39,13 @@ void Task::Child_policy::exit(int exit_value)
 		default:
 			type = Event::EXIT_ERROR;
 	}
+	Dom0_server::Connection dom0;
+	dom0.send_profile(name());
 
 	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 	Task::_child_destructor.submit_for_destruction(_task);
 
-	Dom0_server::Connection dom0;
-	dom0.send_profile(name());
+
 	
 }
 
@@ -127,7 +128,7 @@ void Task::Child_policy::unregister_services()
 
 Task::Meta::Meta(const Task& task) :
 	ram{},
-	cpu{task.name().c_str(), task._desc.priority, task._desc.deadline, Genode::Affinity(Genode::Affinity::Space(2,1), Genode::Affinity::Location(1,0))},
+	cpu{task.name().c_str(), task._desc.priority, task._desc.deadline, Genode::Affinity(Genode::Affinity::Space(4,1), Genode::Affinity::Location(1,0))},
 	rm{},
 	pd{},
 	server{ram}
@@ -274,50 +275,7 @@ void Task::run()
 
 	if (_desc.period > 0)
 	{
-		if(_desc.number_of_jobs == 0)
-		{
-			_start_timer.trigger_periodic(_desc.period * 1000000);
-		}
-		else
-		{
-			Genode::String<32> task_name(_name.c_str());
-			int starting_permission;
-			for(unsigned int i = 1; i <= _desc.number_of_jobs; ++i)
-			{
-				
-				// if task is edf task, query monitor, else start job
-				if(_desc.deadline > 0)
-				{
-					PINF("Taskloader (task.run): Call optimizer due to job %d of task %s.", i, _name.c_str());
-					// perform optimization (call this function now, since optimizer is no individual thread)
-					//_controller->optimize(task_name);
-				
-					// determine result of optimization
-					starting_permission = _controller->scheduling_allowed(task_name);
-					
-				}
-				else
-				{
-					starting_permission = 1;
-				}
-				if(starting_permission > 0)
-				{
-					_start(0);
-					_start_timer.msleep(_desc.period * 1000);
-					PINF("Taskloader (task.run): Start job %d of task %s.", i, _name.c_str());
-				}
-				if(starting_permission < 0)
-				{
-					PWRN("Taskloader (task.run): Task %s (job %d) is not recognized by optimizer.", _name.c_str(), i);
-					break;
-				}
-			}
-			if((starting_permission > 0) && (_desc.deadline > 0))
-			{
-				PINF("Taskloader (task.run): Last job (%d) of task %s started.", _desc.number_of_jobs, _name.c_str());
-				_controller->last_job_started(task_name);
-			}
-		}
+		_start_timer.trigger_periodic(_desc.period * 1000000);
 	}
 	else
 	{
@@ -376,7 +334,7 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 
 	event.type = type;
 	event.task_id = task_id;
-	event.time_stamp = shared.timer.elapsed_ms();
+	event.time_stamp = shared.timer.now_us()/1000;
 
 	Event::Task_info* task_manager_info = nullptr;
 
@@ -443,6 +401,15 @@ std::string Task::_make_name() const
 
 void Task::_start(unsigned)
 {
+	if(_desc.deadline>0)
+	{
+		if(!_controller->scheduling_allowed(_name.c_str()))
+		{
+			PINF("%s NOT ALLOWED!", _name.c_str());
+			return;
+		}
+		PINF("%s ALLOWED!", _name.c_str());
+	}
 	if (_paused)
 	{
 		// This might happen if start timeout is triggered before a stop call but is handled after.
@@ -530,7 +497,7 @@ void Task::Child_destructor_thread::entry()
 		}
 		_queued.clear();
 		_lock.unlock();
-		_timer.msleep(10);
+		//_timer.msleep(10);
 	}
 }
 
