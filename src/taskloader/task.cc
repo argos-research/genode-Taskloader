@@ -247,7 +247,7 @@ Rq_task::Rq_task Task::getRqTask()
 	rq_task.wcet = _desc.execution_time;
 	rq_task.prio = _desc.priority;
 	rq_task.inter_arrival = _desc.period;
-	rq_task.deadline = _desc.deadline;
+	rq_task.deadline = _desc.deadline*1000;
 	strcpy(rq_task.group, _desc.group.c_str());
 	strcpy(rq_task.name, _name.c_str());
 	
