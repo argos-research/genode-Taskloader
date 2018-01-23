@@ -145,7 +145,7 @@ Task::Meta::Meta(const Task& task) :
 Task::Meta_ex::Meta_ex(Task& task) :
 		Meta{task},
 		policy{task},
-		_initial_thread(cpu, pd.cap(), task._desc.binary_name.c_str()),
+		_initial_thread(cpu, pd.cap(), task.name().c_str()), //task._desc.binary_name.c_str()),
 		ldso_rom{"ld.lib.so"},
 		rmc(pd.address_space()),
 		child {
@@ -397,6 +397,7 @@ std::string Task::_make_name() const
 	char id[4];
 	snprintf(id, sizeof(id), "%.2d.", _desc.id);
 	return std::string(id) + _desc.binary_name;
+	// return _desc.binary_name;
 }
 
 void Task::_start(unsigned)
