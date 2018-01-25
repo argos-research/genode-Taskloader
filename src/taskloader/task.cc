@@ -270,6 +270,7 @@ void Task::run()
 	_paused = false;
 
 	// (Re-)Register timeout handlers.
+	_start_timer.msleep(_desc.offset);
 	_start_timer.sigh(_start_dispatcher);
 	_kill_timer.sigh(_kill_dispatcher);
 
@@ -498,7 +499,7 @@ void Task::Child_destructor_thread::entry()
 		}
 		_queued.clear();
 		_lock.unlock();
-		//_timer.msleep(10);
+		_timer.msleep(100);
 	}
 }
 
