@@ -275,7 +275,7 @@ void Task::run()
 
 	if (_desc.period > 0)
 	{
-		_start_timer.trigger_periodic(_desc.period * 1000000);
+		_start_timer.trigger_periodic(_desc.period * 1000);
 	}
 	else
 	{
