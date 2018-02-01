@@ -43,7 +43,7 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 {
 	Genode::Region_map* rm = Genode::env()->rm_session();
 	const char* xml = rm->attach(xml_ds_cap);
-	PINF("Parsing XML file:\n%s", xml);
+	if(verbose_debug) PINF("Parsing XML file:\n%s", xml);
 	Genode::Xml_node root(xml);
 	Rq_task::Rq_task rq_task;
 
@@ -57,11 +57,11 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 		rq_task = _shared.tasks.back().getRqTask();
 		int result = sched.new_task(rq_task, 1);
 		if (result != 0){
-			PINF("Task with id %d was not accepted by the controller", rq_task.task_id);
+			if(verbose_debug) PINF("Task with id %d was not accepted by the controller", rq_task.task_id);
 			_shared.tasks.back().setSchedulable(false);
 		}
 		else{
-			PINF("Task with id %d was accepted by the controller", rq_task.task_id);
+			if(verbose_debug) PINF("Task with id %d was accepted by the controller", rq_task.task_id);
 			_shared.tasks.back().setSchedulable(true);
 		}
 	};
@@ -72,7 +72,7 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 
 void Taskloader_session_component::clear_tasks()
 {
-	PDBG("Clearing %d task%s. Binaries still held.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
+	if(verbose_debug) PDBG("Clearing %d task%s. Binaries still held.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	stop();
 
 	// Wait for task destruction.
@@ -84,7 +84,7 @@ Genode::Ram_dataspace_capability Taskloader_session_component::binary_ds(Genode:
 {
 	Genode::Region_map* rm = Genode::env()->rm_session();
 	const char* name = rm->attach(name_ds_cap);
-	PDBG("Reserving %d bytes for binary %s", size, name);
+	if(verbose_debug) PDBG("Reserving %d bytes for binary %s", size, name);
 	Genode::Ram_session* ram = Genode::env()->ram_session();
 
 	// Hoorray for C++ syntax. This basically forwards ctor arguments, constructing the dataspace in-place so there is no copy or dtor call involved which may invalidate the attached pointer.
@@ -96,19 +96,19 @@ Genode::Ram_dataspace_capability Taskloader_session_component::binary_ds(Genode:
 
 void Taskloader_session_component::start()
 {
-	PINF("Starting %d task%s.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
+	if(verbose_debug) PINF("Starting %d task%s.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	for (Task& task : _shared.tasks)
 	{
 		if (task.isSchedulable())
 		{
-			task.run();
+			Task::_child_start.submit_for_start(&task);
 		}
 	}
 }
 
 void Taskloader_session_component::stop()
 {
-	PINF("Stopping all tasks.");
+	if(verbose_debug) PINF("Stopping all tasks.");
 	for (Task& task : _shared.tasks)
 	{
 		if (task.isSchedulable())
@@ -130,7 +130,7 @@ Genode::Ram_dataspace_capability Taskloader_session_component::profile_data()
 	//Task::log_profile_data(Task::Event::EXTERNAL, -1, _shared);
 
 	// Xml_generator directly writes XML data into the buffer on construction, explaining the heavy recursion here.
-	//PDBG("Generating event log. %d events have occurred.", _shared.event_log.size());
+	//if(verbose_debug) PDBG("Generating event log. %d events have occurred.", _shared.event_log.size());
 	Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
 	{
 

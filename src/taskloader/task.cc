@@ -18,14 +18,14 @@ Task::Child_policy::Child_policy(Task& task) :
 
 void Task::Child_policy::exit(int exit_value)
 {
-	Genode::Lock::Guard guard(_exit_lock);
+	//Genode::Lock::Guard guard(_exit_lock);
 	// Already exited, waiting for destruction.
 	if (!_active)
 	{
 		return;
 	}
 	_active = false;
-	PDBG("child %s exited with exit value %d", name(), exit_value);
+	//PDBG("child %s exited with exit value %d", name(), exit_value);
 
 	Task::Event::Type type;
 	switch (exit_value)
@@ -39,11 +39,13 @@ void Task::Child_policy::exit(int exit_value)
 		default:
 			type = Event::EXIT_ERROR;
 	}
+	Task::_child_destructor.submit_for_destruction(_task);
+	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 	Dom0_server::Connection dom0;
 	dom0.send_profile(name());
 
-	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
-	Task::_child_destructor.submit_for_destruction(_task);
+	
+	
 
 
 	
@@ -128,7 +130,7 @@ void Task::Child_policy::unregister_services()
 
 Task::Meta::Meta(const Task& task) :
 	ram{},
-	cpu{task.name().c_str(), task._desc.priority, task._desc.deadline, Genode::Affinity(Genode::Affinity::Space(4,1), Genode::Affinity::Location(1,0))},
+	cpu{task.name().c_str(), task._desc.priority, task._desc.deadline*1000, Genode::Affinity(Genode::Affinity::Space(4,1), Genode::Affinity::Location(1,0))},
 	rm{},
 	pd{},
 	server{ram}
@@ -247,7 +249,7 @@ Rq_task::Rq_task Task::getRqTask()
 	rq_task.wcet = _desc.execution_time;
 	rq_task.prio = _desc.priority;
 	rq_task.inter_arrival = _desc.period;
-	rq_task.deadline = _desc.deadline;
+	rq_task.deadline = _desc.deadline*1000;
 	strcpy(rq_task.group, _desc.group.c_str());
 	strcpy(rq_task.name, _name.c_str());
 	
@@ -270,13 +272,16 @@ void Task::run()
 	_paused = false;
 
 	// (Re-)Register timeout handlers.
-	_start_timer.msleep(_desc.offset);
+	Timer::Connection offset_timer;
+	//PDBG("Waiting %dms",_desc.offset);
+	offset_timer.msleep(_desc.offset);
+	
 	_start_timer.sigh(_start_dispatcher);
 	_kill_timer.sigh(_kill_dispatcher);
 
 	if (_desc.period > 0)
 	{
-		_start_timer.trigger_periodic(_desc.period * 1000000);
+		_start_timer.trigger_periodic(_desc.period * 1000);
 	}
 	else
 	{
@@ -323,7 +328,7 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 {
 	static const size_t MAX_NUM_SUBJECTS = 128;
 	// Lock to avoid race conditions as this may be called by the child's thread.
-	Genode::Lock::Guard guard(shared.log_lock);
+	//Genode::Lock::Guard guard(shared.log_lock);
 
 	Genode::Trace::Subject_id subjects[MAX_NUM_SUBJECTS];
 	const size_t num_subjects = shared.trace.subjects(subjects, MAX_NUM_SUBJECTS);
@@ -435,7 +440,7 @@ void Task::_start(unsigned)
 	Genode::Attached_ram_dataspace& ds = bin_it->second;
 
 	++_iteration;
-	PINF("Starting task %s with quota %u and priority %u in iteration %d", _name.c_str(), (size_t)_desc.quota, _desc.priority, _iteration);
+	//PINF("Starting task %s with quota %u and priority %u in iteration %d", _name.c_str(), (size_t)_desc.quota, _desc.priority, _iteration);
 
 	if ((size_t)_desc.quota < 512 * 1024)
 	{
@@ -480,7 +485,22 @@ Task::Child_destructor_thread::Child_destructor_thread() :
 	start();
 }
 
+Task::Child_start_thread::Child_start_thread() :
+	Thread_deprecated{"child_start"},
+	_lock{},
+	_queued{}
+{
+	start();
+}
+
 void Task::Child_destructor_thread::submit_for_destruction(Task* task)
+{
+	_lock.lock();
+	_queued.push_back(task);
+	_lock.unlock();
+}
+
+void Task::Child_start_thread::submit_for_start(Task* task)
 {
 	Genode::Lock::Guard guard(_lock);
 	_queued.push_back(task);
@@ -490,20 +510,43 @@ void Task::Child_destructor_thread::entry()
 {
 	while (true)
 	{
+		
+		_lock.lock();
+		if(!_queued.empty())
+		{
+			Task* task=_queued.front();
+			_queued.remove(task);
+			_lock.unlock();
+			//_timer.msleep(100);
+			PDBG("Destroying task %s", task->_name.c_str());
+			int time_before=_timer.elapsed_ms();
+			Genode::destroy(task->_shared.heap, task->_meta);
+			task->_meta = nullptr;
+			PDBG("Done Destruction. Took: %d",_timer.elapsed_ms()-time_before);
+		}
+		_lock.unlock();
+		
+		
+	}
+}
+
+void Task::Child_start_thread::entry()
+{
+	while (true)
+	{
 		_lock.lock();
 		for (Task* task : _queued)
 		{
-			PDBG("Destroying task %s", task->_name.c_str());
-			Genode::destroy(task->_shared.heap, task->_meta);
-			task->_meta = nullptr;
+			//PDBG("Starting task %s", task->_name.c_str());
+			task->run();
 		}
 		_queued.clear();
 		_lock.unlock();
-		_timer.msleep(100);
 	}
 }
 
 Task::Child_destructor_thread Task::_child_destructor;
+Task::Child_start_thread Task::_child_start;
 
 void Task::_kill_crit(unsigned)
 {
