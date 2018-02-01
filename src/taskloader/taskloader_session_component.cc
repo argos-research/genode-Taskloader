@@ -67,6 +67,8 @@ void Taskloader_session_component::add_tasks(Genode::Ram_dataspace_capability xm
 	};
 
 	root.for_each_sub_node("periodictask", fn);
+
+	sched.set_opt_goal(xml_ds_cap);
 	rm->detach(xml);
 }
 

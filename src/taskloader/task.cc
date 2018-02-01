@@ -18,7 +18,7 @@ Task::Child_policy::Child_policy(Task& task) :
 
 void Task::Child_policy::exit(int exit_value)
 {
-	//Genode::Lock::Guard guard(_exit_lock);
+	Genode::Lock::Guard guard(_exit_lock);
 	// Already exited, waiting for destruction.
 	if (!_active)
 	{
@@ -39,11 +39,11 @@ void Task::Child_policy::exit(int exit_value)
 		default:
 			type = Event::EXIT_ERROR;
 	}
-	Task::_child_destructor.submit_for_destruction(_task);
+	
 	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 	Dom0_server::Connection dom0;
 	dom0.send_profile(name());
-
+	Task::_child_destructor.submit_for_destruction(_task);
 	
 	
 
@@ -328,7 +328,7 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 {
 	static const size_t MAX_NUM_SUBJECTS = 128;
 	// Lock to avoid race conditions as this may be called by the child's thread.
-	//Genode::Lock::Guard guard(shared.log_lock);
+	Genode::Lock::Guard guard(shared.log_lock);
 
 	Genode::Trace::Subject_id subjects[MAX_NUM_SUBJECTS];
 	const size_t num_subjects = shared.trace.subjects(subjects, MAX_NUM_SUBJECTS);
