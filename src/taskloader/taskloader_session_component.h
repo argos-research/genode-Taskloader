@@ -52,6 +52,7 @@ protected:
 	static Genode::Number_of_bytes _trace_buf_size();
 
 private:
+	bool verbose_debug=false;
 	Sched_controller::Connection sched;
 };
 

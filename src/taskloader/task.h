@@ -132,7 +132,6 @@ public:
 		unsigned int period;
 		unsigned int offset;
 		unsigned int number_of_jobs;
-		std::string group;
 		Genode::Number_of_bytes quota;
 		std::string binary_name;
 	};
@@ -146,7 +145,7 @@ public:
 		std::unordered_map<std::string, Genode::Attached_ram_dataspace> binaries;
 
 		// Heap on which to create the init child.
-		Genode::Sliced_heap heap;
+		Genode::Heap heap;
 
 		// Core services provided by the parent.
 		Genode::Service_registry parent_services;
@@ -194,6 +193,20 @@ protected:
 	public:
 		Child_destructor_thread();
 		void submit_for_destruction(Task* task);
+
+	private:
+		Genode::Lock _lock;
+		std::list<Task*> _queued;
+		Timer::Connection _timer;
+
+		void entry() override;
+	};
+
+	class Child_start_thread : Genode::Thread_deprecated<2*4096>
+	{
+	public:
+		Child_start_thread();
+		void submit_for_start(Task* task);
 
 	private:
 		Genode::Lock _lock;
@@ -259,5 +272,6 @@ private:
 	bool _schedulable;
 public:
 	static Child_destructor_thread _child_destructor;
+	static Child_start_thread _child_start;
 	Sched_controller::Connection* _controller;
 };

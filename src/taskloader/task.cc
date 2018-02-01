@@ -25,7 +25,7 @@ void Task::Child_policy::exit(int exit_value)
 		return;
 	}
 	_active = false;
-	PDBG("child %s exited with exit value %d", name(), exit_value);
+	//PDBG("child %s exited with exit value %d", name(), exit_value);
 
 	Task::Event::Type type;
 	switch (exit_value)
@@ -39,11 +39,13 @@ void Task::Child_policy::exit(int exit_value)
 		default:
 			type = Event::EXIT_ERROR;
 	}
+	
+	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 	Dom0_server::Connection dom0;
 	dom0.send_profile(name());
-
-	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 	Task::_child_destructor.submit_for_destruction(_task);
+	
+	
 
 
 	
@@ -145,7 +147,7 @@ Task::Meta::Meta(const Task& task) :
 Task::Meta_ex::Meta_ex(Task& task) :
 		Meta{task},
 		policy{task},
-		_initial_thread(cpu, pd.cap(), task._desc.binary_name.c_str()),
+		_initial_thread(cpu, pd.cap(), task.name().c_str()), //task._desc.binary_name.c_str()),
 		ldso_rom{"ld.lib.so"},
 		rmc(pd.address_space()),
 		child {
@@ -204,7 +206,6 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 			_get_node_value<unsigned int>(node, "period"),
 			_get_node_value<unsigned int>(node, "offset"),
 			_get_node_value<unsigned int>(node, "numberofjobs"),
-			_get_node_value(node, "group", 32, ""),
 			_get_node_value<Genode::Number_of_bytes>(node, "quota"),
 			_get_node_value(node, "pkg", 32, "")},
 		_config{Genode::env()->ram_session(), node.sub_node("config").size()},
@@ -248,7 +249,6 @@ Rq_task::Rq_task Task::getRqTask()
 	rq_task.prio = _desc.priority;
 	rq_task.inter_arrival = _desc.period;
 	rq_task.deadline = _desc.deadline*1000;
-	strcpy(rq_task.group, _desc.group.c_str());
 	strcpy(rq_task.name, _name.c_str());
 	
 	if(_desc.deadline > 0)
@@ -270,6 +270,10 @@ void Task::run()
 	_paused = false;
 
 	// (Re-)Register timeout handlers.
+	Timer::Connection offset_timer;
+	//PDBG("Waiting %dms",_desc.offset);
+	offset_timer.msleep(_desc.offset);
+	
 	_start_timer.sigh(_start_dispatcher);
 	_kill_timer.sigh(_kill_dispatcher);
 
@@ -397,6 +401,7 @@ std::string Task::_make_name() const
 	char id[4];
 	snprintf(id, sizeof(id), "%.2d.", _desc.id);
 	return std::string(id) + _desc.binary_name;
+	// return _desc.binary_name;
 }
 
 void Task::_start(unsigned)
@@ -433,7 +438,7 @@ void Task::_start(unsigned)
 	Genode::Attached_ram_dataspace& ds = bin_it->second;
 
 	++_iteration;
-	PINF("Starting task %s with quota %u and priority %u in iteration %d", _name.c_str(), (size_t)_desc.quota, _desc.priority, _iteration);
+	//PINF("Starting task %s with quota %u and priority %u in iteration %d", _name.c_str(), (size_t)_desc.quota, _desc.priority, _iteration);
 
 	if ((size_t)_desc.quota < 512 * 1024)
 	{
@@ -478,7 +483,22 @@ Task::Child_destructor_thread::Child_destructor_thread() :
 	start();
 }
 
+Task::Child_start_thread::Child_start_thread() :
+	Thread_deprecated{"child_start"},
+	_lock{},
+	_queued{}
+{
+	start();
+}
+
 void Task::Child_destructor_thread::submit_for_destruction(Task* task)
+{
+	_lock.lock();
+	_queued.push_back(task);
+	_lock.unlock();
+}
+
+void Task::Child_start_thread::submit_for_start(Task* task)
 {
 	Genode::Lock::Guard guard(_lock);
 	_queued.push_back(task);
@@ -488,20 +508,43 @@ void Task::Child_destructor_thread::entry()
 {
 	while (true)
 	{
+		
+		_lock.lock();
+		if(!_queued.empty())
+		{
+			Task* task=_queued.front();
+			_queued.remove(task);
+			_lock.unlock();
+			//_timer.msleep(100);
+			PDBG("Destroying task %s", task->_name.c_str());
+			int time_before=_timer.elapsed_ms();
+			Genode::destroy(task->_shared.heap, task->_meta);
+			task->_meta = nullptr;
+			PDBG("Done Destruction. Took: %d",_timer.elapsed_ms()-time_before);
+		}
+		_lock.unlock();
+		
+		
+	}
+}
+
+void Task::Child_start_thread::entry()
+{
+	while (true)
+	{
 		_lock.lock();
 		for (Task* task : _queued)
 		{
-			PDBG("Destroying task %s", task->_name.c_str());
-			Genode::destroy(task->_shared.heap, task->_meta);
-			task->_meta = nullptr;
+			//PDBG("Starting task %s", task->_name.c_str());
+			task->run();
 		}
 		_queued.clear();
 		_lock.unlock();
-		//_timer.msleep(10);
 	}
 }
 
 Task::Child_destructor_thread Task::_child_destructor;
+Task::Child_start_thread Task::_child_start;
 
 void Task::_kill_crit(unsigned)
 {
