@@ -206,7 +206,6 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 			_get_node_value<unsigned int>(node, "period"),
 			_get_node_value<unsigned int>(node, "offset"),
 			_get_node_value<unsigned int>(node, "numberofjobs"),
-			_get_node_value(node, "group", 32, ""),
 			_get_node_value<Genode::Number_of_bytes>(node, "quota"),
 			_get_node_value(node, "pkg", 32, "")},
 		_config{Genode::env()->ram_session(), node.sub_node("config").size()},
@@ -250,7 +249,6 @@ Rq_task::Rq_task Task::getRqTask()
 	rq_task.prio = _desc.priority;
 	rq_task.inter_arrival = _desc.period;
 	rq_task.deadline = _desc.deadline*1000;
-	strcpy(rq_task.group, _desc.group.c_str());
 	strcpy(rq_task.name, _name.c_str());
 	
 	if(_desc.deadline > 0)
