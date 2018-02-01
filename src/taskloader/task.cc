@@ -130,11 +130,12 @@ void Task::Child_policy::unregister_services()
 
 Task::Meta::Meta(const Task& task) :
 	ram{},
-	cpu{task.name().c_str(), task._desc.priority, task._desc.deadline*1000, Genode::Affinity(Genode::Affinity::Space(4,1), Genode::Affinity::Location(1,0))},
+	cpu{task.name().c_str(), (128-task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)), task._desc.deadline, Genode::Affinity(Genode::Affinity::Space(4,1), Genode::Affinity::Location(1,0))},
 	rm{},
 	pd{},
 	server{ram}
 {
+	PDBG("Taskloader prio %d prio normalized %d",(128-task._desc.priority),(128-task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)));
 	ram.ref_account(Genode::env()->ram_session_cap());
 	if (Genode::env()->ram_session()->transfer_quota(ram.cap(), task._desc.quota) != 0)
 	{
@@ -201,7 +202,7 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 			_get_node_value<unsigned int>(node, "id"),
 			_get_node_value<unsigned int>(node, "executiontime"),
 			_get_node_value<unsigned int>(node, "criticaltime"),
-			_get_node_value<unsigned int>(node, "priority"),
+			_get_node_value<unsigned long>(node, "priority"),
 			_get_node_value<unsigned int>(node, "deadline"),
 			_get_node_value<unsigned int>(node, "period"),
 			_get_node_value<unsigned int>(node, "offset"),

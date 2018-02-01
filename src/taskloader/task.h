@@ -127,7 +127,7 @@ public:
 		unsigned int id;
 		unsigned int execution_time;
 		unsigned int critical_time;
-		unsigned int priority;
+		unsigned long priority;
 		unsigned int deadline;
 		unsigned int period;
 		unsigned int offset;
