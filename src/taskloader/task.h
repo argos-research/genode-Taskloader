@@ -106,7 +106,7 @@ public:
 			bool managed;
 			Managed_info managed_info;
 		};
-		enum Type { START = 0, EXIT, EXIT_CRITICAL, EXIT_ERROR, EXIT_EXTERNAL, EXTERNAL };
+		enum Type { START = 0, EXIT, EXIT_CRITICAL, EXIT_ERROR, EXIT_EXTERNAL, EXTERNAL, NOT_SCHEDULED };
 
 		static const char* type_name(Type type);
 
@@ -186,6 +186,9 @@ public:
 
 	void setSchedulable(bool schedulable);
 	bool isSchedulable();
+
+	unsigned int get_id();
+	Shared_data& get_shared();
 
 protected:
 	class Child_destructor_thread : Genode::Thread_deprecated<2*4096>

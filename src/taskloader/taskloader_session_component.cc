@@ -105,6 +105,11 @@ void Taskloader_session_component::start()
 		{
 			Task::_child_start.submit_for_start(&task);
 		}
+		else
+		{
+			Task::Event::Type type=Task::Event::NOT_SCHEDULED;
+			Task::log_profile_data(type, task.get_id(), task.get_shared());
+		}
 	}
 }
 

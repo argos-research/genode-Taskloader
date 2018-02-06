@@ -135,7 +135,6 @@ Task::Meta::Meta(const Task& task) :
 	pd{},
 	server{ram}
 {
-	PDBG("Taskloader prio %d prio normalized %d",(128-task._desc.priority),(128-task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)));
 	ram.ref_account(Genode::env()->ram_session_cap());
 	if (Genode::env()->ram_session()->transfer_quota(ram.cap(), task._desc.quota) != 0)
 	{
@@ -240,6 +239,16 @@ void Task::setSchedulable(bool schedulable)
 bool Task::isSchedulable()
 {
 	return _schedulable;
+}
+
+unsigned int Task::get_id()
+{
+	return _desc.id;
+}
+
+Task::Shared_data& Task::get_shared()
+{
+	return _shared;
 }
 
 Rq_task::Rq_task Task::getRqTask()
