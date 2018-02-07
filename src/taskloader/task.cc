@@ -130,7 +130,7 @@ void Task::Child_policy::unregister_services()
 
 Task::Meta::Meta(const Task& task) :
 	ram{},
-	cpu{task.name().c_str(), (128-task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)), task._desc.deadline, Genode::Affinity(Genode::Affinity::Space(4,1), Genode::Affinity::Location(1,0))},
+	cpu{task.name().c_str(), (128-task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)), task._desc.deadline*1000, Genode::Affinity(Genode::Affinity::Space(4,1), Genode::Affinity::Location(1,0))},
 	rm{},
 	pd{},
 	server{ram}
