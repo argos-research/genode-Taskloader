@@ -41,6 +41,11 @@ void Task::Child_policy::exit(int exit_value)
 	}
 	
 	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
+	if(_task->jobs_done())
+	{
+		type=Task::Event::JOBS_DONE;
+                Task::log_profile_data(type, _task->_desc.id, _task->_shared);
+	}
 	Dom0_server::Connection dom0;
 	dom0.send_profile(name());
 	Task::_child_destructor.submit_for_destruction(_task);
@@ -249,6 +254,11 @@ unsigned int Task::get_id()
 Task::Shared_data& Task::get_shared()
 {
 	return _shared;
+}
+
+bool Task::jobs_done()
+{
+	return _iteration==_desc.number_of_jobs;
 }
 
 Rq_task::Rq_task Task::getRqTask()

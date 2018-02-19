@@ -106,7 +106,7 @@ public:
 			bool managed;
 			Managed_info managed_info;
 		};
-		enum Type { START = 0, EXIT, EXIT_CRITICAL, EXIT_ERROR, EXIT_EXTERNAL, EXTERNAL, NOT_SCHEDULED };
+		enum Type { START = 0, EXIT, EXIT_CRITICAL, EXIT_ERROR, EXIT_EXTERNAL, EXTERNAL, NOT_SCHEDULED, JOBS_DONE };
 
 		static const char* type_name(Type type);
 
@@ -189,6 +189,7 @@ public:
 
 	unsigned int get_id();
 	Shared_data& get_shared();
+	bool jobs_done();
 
 protected:
 	class Child_destructor_thread : Genode::Thread_deprecated<2*4096>
@@ -225,7 +226,7 @@ protected:
 
 	Genode::Attached_ram_dataspace _config;
 	const std::string _name;
-	int _iteration;
+	unsigned int _iteration;
 
 	bool _paused;
 
