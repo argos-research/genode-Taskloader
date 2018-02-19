@@ -18,6 +18,7 @@
 #include <util/xml_node.h>
 #include <rm_session/connection.h>
 #include "sched_controller_session/connection.h"
+#include "mon_manager/mon_manager.h"
 
 #include <base/affinity.h>
 
@@ -277,5 +278,6 @@ private:
 public:
 	static Child_destructor_thread _child_destructor;
 	static Child_start_thread _child_start;
+	static Mon_manager::Connection _mon;
 	Sched_controller::Connection* _controller;
 };
