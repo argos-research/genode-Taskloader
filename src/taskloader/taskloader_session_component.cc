@@ -101,14 +101,17 @@ void Taskloader_session_component::start()
 	if(verbose_debug) PINF("Starting %d task%s.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	for (Task& task : _shared.tasks)
 	{
-		if (task.isSchedulable())
+		if (!task.jobs_done())
 		{
-			Task::_child_start.submit_for_start(&task);
-		}
-		else
-		{
-			Task::Event::Type type=Task::Event::NOT_SCHEDULED;
-			Task::log_profile_data(type, task.get_id(), task.get_shared());
+			if(task.isSchedulable())
+			{
+				Task::_child_start.submit_for_start(&task);
+			}
+			else
+			{
+				Task::Event::Type type=Task::Event::NOT_SCHEDULED;
+				Task::log_profile_data(type, task.get_id(), task.get_shared());
+			}
 		}
 	}
 }
