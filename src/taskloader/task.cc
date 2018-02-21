@@ -258,7 +258,9 @@ Task::Shared_data& Task::get_shared()
 
 bool Task::jobs_done()
 {
+	PDBG("iteration: %d num jobs: %d name: %s\n", _iteration, _desc.number_of_jobs, _name.c_str());
 	return _iteration==_desc.number_of_jobs;
+
 }
 
 Rq_task::Rq_task Task::getRqTask()
@@ -426,11 +428,20 @@ std::string Task::_make_name() const
 
 void Task::_start(unsigned)
 {
+	if (jobs_done())
+	{
+		//trigger optimization to let all remaining tasks finish running
+		_controller->scheduling_allowed(_name.c_str());
+		PINF("%s JOBS DONE!", _name.c_str());
+		return;
+	}
 	if(_desc.deadline>0)
 	{
 		if(!_controller->scheduling_allowed(_name.c_str()))
 		{
 			PINF("%s NOT ALLOWED!", _name.c_str());
+			Task::Event::Type type=Task::Event::NOT_SCHEDULED;
+			Task::log_profile_data(type, get_id(), get_shared());
 			return;
 		}
 		PINF("%s ALLOWED!", _name.c_str());
@@ -444,6 +455,7 @@ void Task::_start(unsigned)
 	if (running())
 	{
 		PINF("Trying to start %s but previous instance still running or undestroyed. Abort.\n", _name.c_str());
+		Task::_child_destructor.submit_for_destruction(this);
 		return;
 	}
 
@@ -555,7 +567,7 @@ void Task::Child_start_thread::entry()
 		_lock.lock();
 		for (Task* task : _queued)
 		{
-			//PDBG("Starting task %s", task->_name.c_str());
+			PDBG("Starting task %s", task->_name.c_str());
 			task->run();
 		}
 		_queued.clear();

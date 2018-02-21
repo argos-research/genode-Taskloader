@@ -27,7 +27,7 @@ Taskloader_session_component::Taskloader_session_component(Server::Entrypoint& e
 	{
 		// core services
 		"CAP", "RAM", "RM", "PD", "CPU", "IO_MEM", "IO_PORT",
-		"IRQ", "ROM", "LOG", "SIGNAL"
+		"IRQ", "ROM", "LOG", "SIGNAL", "Timer", "Nic"
 	};
 	for (const char* name : names)
 	{
@@ -101,17 +101,14 @@ void Taskloader_session_component::start()
 	if(verbose_debug) PINF("Starting %d task%s.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	for (Task& task : _shared.tasks)
 	{
-		if (!task.jobs_done())
+		if(task.isSchedulable())
 		{
-			if(task.isSchedulable())
-			{
-				Task::_child_start.submit_for_start(&task);
-			}
-			else
-			{
-				Task::Event::Type type=Task::Event::NOT_SCHEDULED;
-				Task::log_profile_data(type, task.get_id(), task.get_shared());
-			}
+			Task::_child_start.submit_for_start(&task);
+		}
+		else
+		{
+			Task::Event::Type type=Task::Event::NOT_SCHEDULED;
+			Task::log_profile_data(type, task.get_id(), task.get_shared());
 		}
 	}
 }
