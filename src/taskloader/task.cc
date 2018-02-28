@@ -184,6 +184,8 @@ const char* Task::Event::type_name(Type type)
 		case EXIT_ERROR: return "EXIT_ERROR";
 		case EXIT_EXTERNAL: return "EXIT_EXTERNAL";
 		case EXTERNAL: return "EXTERNAL";
+		case NOT_SCHEDULED: return "NOT_SCHEDULED";
+		case JOBS_DONE: return "JOBS_DONE";
 		default: return "UNKNOWN";
 	}
 }
