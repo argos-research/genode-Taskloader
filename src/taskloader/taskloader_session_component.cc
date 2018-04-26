@@ -130,16 +130,7 @@ void Taskloader_session_component::stop()
 
 Genode::Ram_dataspace_capability Taskloader_session_component::profile_data()
 {
-	static Genode::Trace::Connection trace(1024*4096, 64*4096, 0);
-
-	Genode::Trace::Subject_id subjects[32];
-	size_t num_subjects = trace.subjects(subjects, 32);
-
-
-	//Task::log_profile_data(Task::Event::EXTERNAL, -1, _shared);
-
-	// Xml_generator directly writes XML data into the buffer on construction, explaining the heavy recursion here.
-	//if(verbose_debug) PDBG("Generating event log. %d events have occurred.", _shared.event_log.size());
+	_profile_data.realloc(Genode::env()->ram_session(), _profile_ds_size());
 	Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
 	{
 
