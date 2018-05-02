@@ -131,24 +131,29 @@ void Taskloader_session_component::stop()
 Genode::Ram_dataspace_capability Taskloader_session_component::profile_data()
 {
 	_profile_data.realloc(Genode::env()->ram_session(), _profile_ds_size());
-	Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
+	/* There is some shitty race conditions going on, that produces empty logs */
+	if(_shared.event_log.size())
 	{
-
-		xml.node("events", [&]()
+		Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
 		{
-			for (const Task::Event& event : _shared.event_log)
-			{
-				xml.node("event", [&]()
-				{
-					xml.attribute("type", Task::Event::type_name(event.type));
-					xml.attribute("task-id", std::to_string(event.task_id).c_str());
-					xml.attribute("time-stamp", std::to_string(event.time_stamp).c_str());
-				});
-			}
-		});
-	});
 
-	_shared.event_log.clear();
+			xml.node("events", [&]()
+			{
+				for (const Task::Event& event : _shared.event_log)
+				{
+					xml.node("event", [&]()
+					{
+						xml.attribute("type", Task::Event::type_name(event.type));
+						xml.attribute("task-id", std::to_string(event.task_id).c_str());
+						xml.attribute("time-stamp", std::to_string(event.time_stamp).c_str());
+					});
+				}
+			});
+		});
+		_shared.event_log.clear();
+	}
+
+
 
 	return _profile_data.cap();
 }
