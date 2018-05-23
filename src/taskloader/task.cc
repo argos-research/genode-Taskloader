@@ -140,7 +140,7 @@ Task::Meta::Meta(const Task& task) :
 	pd{},
 	server{ram}
 {
-	Genode::log("prio ",(task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)));
+	//Genode::log("prio ",(task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)));
 	ram.ref_account(Genode::env()->ram_session_cap());
 	if (Genode::env()->ram_session()->transfer_quota(ram.cap(), task._desc.quota) != 0)
 	{
