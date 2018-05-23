@@ -135,11 +135,12 @@ void Task::Child_policy::unregister_services()
 
 Task::Meta::Meta(const Task& task) :
 	ram{},
-	cpu{task.name().c_str(), (128-task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)), task._desc.deadline*1000, Genode::Affinity(Genode::Affinity::Space(_mon.get_num_cores(),1), Genode::Affinity::Location(1,0))},
+	cpu{task.name().c_str(), (task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)), task._desc.deadline*1000, Genode::Affinity(Genode::Affinity::Space(_mon.get_num_cores(),1), Genode::Affinity::Location(1,0))},
 	rm{},
 	pd{},
 	server{ram}
 {
+	Genode::log("prio ",(task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)));
 	ram.ref_account(Genode::env()->ram_session_cap());
 	if (Genode::env()->ram_session()->transfer_quota(ram.cap(), task._desc.quota) != 0)
 	{
