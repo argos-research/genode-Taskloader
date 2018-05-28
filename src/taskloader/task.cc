@@ -461,7 +461,7 @@ void Task::_start(unsigned)
 	{
 		PINF("Trying to start %s but previous instance still running or undestroyed. Abort.\n", _name.c_str());
 		//Task::_child_destructor.submit_for_destruction(this);
-		_kill(19);
+		_kill(20);
 		return;
 	}
 
