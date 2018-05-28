@@ -36,6 +36,8 @@ void Task::Child_policy::exit(int exit_value)
 			type = Event::EXIT_CRITICAL; break;
 		case 19:
 			type = Event::EXIT_EXTERNAL; break;
+		case 20:
+			type = Event::EXIT_PERIOD; break;
 		default:
 			type = Event::EXIT_ERROR;
 	}
