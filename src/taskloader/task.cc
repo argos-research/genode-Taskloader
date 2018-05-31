@@ -186,6 +186,7 @@ const char* Task::Event::type_name(Type type)
 		case EXIT_CRITICAL: return "EXIT_CRITICAL";
 		case EXIT_ERROR: return "EXIT_ERROR";
 		case EXIT_EXTERNAL: return "EXIT_EXTERNAL";
+		case EXIT_PERIOD: return "EXIT_PERIOD";
 		case EXTERNAL: return "EXTERNAL";
 		case NOT_SCHEDULED: return "NOT_SCHEDULED";
 		case JOBS_DONE: return "JOBS_DONE";
@@ -460,8 +461,10 @@ void Task::_start(unsigned)
 	if (running())
 	{
 		PINF("Trying to start %s but previous instance still running or undestroyed. Abort.\n", _name.c_str());
-		//Task::_child_destructor.submit_for_destruction(this);
-		_kill(20);
+		Task::Event::Type type;
+		type = Event::EXIT_PERIOD;
+		Task::log_profile_data(type, _desc.id, _shared);
+		Task::_child_destructor.submit_for_destruction(this);
 		return;
 	}
 
