@@ -16,6 +16,14 @@ Task::Child_policy::Child_policy(Task& task) :
 {
 }
 
+void Task::Child_policy::resource_request(Genode::Parent::Resource_args const &args)
+{
+	Task::Event::Type type;
+	type=Task::Event::OUT_OF_QUOTA;
+        Task::log_profile_data(type, _task->_desc.id, _task->_shared);
+	Task::_child_destructor.submit_for_destruction(_task);
+}
+
 void Task::Child_policy::exit(int exit_value)
 {
 	Genode::Lock::Guard guard(_exit_lock);
@@ -190,6 +198,7 @@ const char* Task::Event::type_name(Type type)
 		case EXTERNAL: return "EXTERNAL";
 		case NOT_SCHEDULED: return "NOT_SCHEDULED";
 		case JOBS_DONE: return "JOBS_DONE";
+		case OUT_OF_QUOTA: return "OUT_OF_QUOTA";
 		default: return "UNKNOWN";
 	}
 }
