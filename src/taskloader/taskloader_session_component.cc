@@ -80,8 +80,8 @@ void Taskloader_session_component::clear_tasks()
 	stop();
 
 	// Wait for task destruction.
-	_shared.timer.msleep(500);
 	_shared.tasks.clear();
+	_shared.timer.msleep(_shared.tasks.size()*500);
 }
 
 Genode::Ram_dataspace_capability Taskloader_session_component::binary_ds(Genode::Ram_dataspace_capability name_ds_cap, size_t size)
