@@ -78,10 +78,10 @@ void Taskloader_session_component::clear_tasks()
 {
 	if(verbose_debug) PDBG("Clearing %d task%s. Binaries still held.", _shared.tasks.size(), _shared.tasks.size() == 1 ? "" : "s");
 	stop();
-
+	int number=_shared.tasks.size();
 	// Wait for task destruction.
 	_shared.tasks.clear();
-	_shared.timer.msleep(_shared.tasks.size()*500);
+	_shared.timer.msleep(number*500);
 }
 
 Genode::Ram_dataspace_capability Taskloader_session_component::binary_ds(Genode::Ram_dataspace_capability name_ds_cap, size_t size)
