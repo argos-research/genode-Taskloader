@@ -470,10 +470,7 @@ void Task::_start(unsigned)
 	if (running())
 	{
 		PINF("Trying to start %s but previous instance still running or undestroyed. Abort.\n", _name.c_str());
-		Task::Event::Type type;
-		type = Event::EXIT_PERIOD;
-		Task::log_profile_data(type, _desc.id, _shared);
-		Task::_child_destructor.submit_for_destruction(this);
+		_kill(20);
 		return;
 	}
 
