@@ -567,6 +567,8 @@ void Task::Child_destructor_thread::entry()
 			_lock.unlock();
 			//_timer.msleep(100);
 			PDBG("Destroying task %s", task->_name.c_str());
+			Dom0_server::Connection dom0;
+			dom0.send_profile(task->_name.c_str());
 			int time_before=_timer.elapsed_ms();
 			Genode::destroy(task->_shared.heap, task->_meta);
 			task->_meta = nullptr;
