@@ -568,14 +568,13 @@ void Task::Child_destructor_thread::entry()
 			Task* task=_queued.front();
 			_queued.remove(task);
 			_lock.unlock();
-			//_timer.msleep(100);
 			PDBG("Destroying task %s", task->_name.c_str());
 			Dom0_server::Connection dom0;
 			dom0.send_profile(task->_name.c_str());
 			int time_before=_timer.elapsed_ms();
 			Genode::destroy(task->_shared.heap, task->_meta);
 			task->_meta = nullptr;
-			PDBG("Done Destruction. Took: %d",_timer.elapsed_ms()-time_before);
+			PDBG("Done Destruction %s. Took: %d",task->_name.c_str(),_timer.elapsed_ms()-time_before);
 		}
 		_lock.unlock();
 		
