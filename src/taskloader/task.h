@@ -46,6 +46,7 @@ public:
 		void unregister_services() override;
 
 		virtual bool active() const;
+		bool _active;
 
 	protected:
 		Task* _task;
@@ -53,7 +54,7 @@ public:
 		Init::Child_policy_provide_rom_file _config_policy;
 		Init::Child_policy_provide_rom_file _binary_policy;
 		Genode::Lock _exit_lock;
-		bool _active;
+		
 	};
 
 	// Part of Meta_ex that needs constructor initialization (transferring ram quota).

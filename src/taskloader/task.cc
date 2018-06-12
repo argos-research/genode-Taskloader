@@ -480,6 +480,7 @@ void Task::_start(unsigned)
 		PINF("Trying to start %s but previous instance still running or undestroyed. Abort.\n", _name.c_str());
 		if(_meta->policy.active())
 		{
+			_meta->policy._active=false;
 			Task::Event::Type type;
 			type = Event::EXIT_PERIOD;
 			Task::log_profile_data(type, _desc.id, _shared);
