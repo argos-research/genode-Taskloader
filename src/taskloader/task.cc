@@ -35,6 +35,8 @@ void Task::Child_policy::exit(int exit_value)
 	_active = false;
 	//PDBG("child %s exited with exit value %d", name(), exit_value);
 
+	_task->_stop_kill_timer();
+
 	Task::Event::Type type;
 	switch (exit_value)
 	{
@@ -480,6 +482,7 @@ void Task::_start(unsigned)
 		PINF("Trying to start %s but previous instance still running or undestroyed. Abort.\n", _name.c_str());
 		if(_meta->policy.active())
 		{
+			_stop_kill_timer();
 			_meta->policy._active=false;
 			Task::Event::Type type;
 			type = Event::EXIT_PERIOD;
@@ -510,6 +513,7 @@ void Task::_start(unsigned)
 	// Dispatch kill timer after critical time.
 	if (_desc.critical_time > 0)
 	{
+		_kill_timer.sigh(_kill_dispatcher);
 		_kill_timer.trigger_once(_desc.critical_time * 1000);
 	}
 
