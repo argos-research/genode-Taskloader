@@ -458,6 +458,7 @@ void Task::_start(unsigned)
 		//trigger optimization to let all remaining tasks finish running
 		_controller->scheduling_allowed(_name.c_str());
 		PINF("%s JOBS DONE!", _name.c_str());
+		_stop_start_timer();
 		return;
 	}
 	if(_desc.deadline>0)
