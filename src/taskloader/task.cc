@@ -254,7 +254,7 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 	}
 	const Genode::Xml_node& config_node = node.sub_node("config");
 	std::strncpy(_config.local_addr<char>(), config_node.addr(), config_node.size());
-	PINF("id: %u, name: %s, prio: %u, deadline: %u, wcet: %u, period: %u", _desc.id, _name.c_str(), _desc.priority, _desc.deadline, _desc.execution_time, _desc.period);
+	PINF("id: %u, name: %s, prio: %u, deadline: %u, offset: %u, period: %u, numberofjobs: %u, criticaltime: %u", _desc.id, _name.c_str(), _desc.priority, _desc.deadline, _desc.offset, _desc.period, _desc.number_of_jobs, _desc.critical_time);
 }
 
 Task::~Task()
@@ -319,6 +319,7 @@ void Task::run()
 	// (Re-)Register timeout handlers.
 	Timer::Connection offset_timer;
 	//PDBG("Waiting %dms",_desc.offset);
+	Genode::log("Waiting ",_desc.offset,"ms offset for task ",_desc.binary_name.c_str(),";");
 	offset_timer.msleep(_desc.offset);
 	
 	_start_timer.sigh(_start_dispatcher);
