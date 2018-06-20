@@ -5,7 +5,7 @@
 
 #include <base/signal.h>
 #include <taskloader/taskloader_session.h>
-#include <os/attached_ram_dataspace.h>
+#include <base/attached_ram_dataspace.h>
 #include <os/server.h>
 #include <root/component.h>
 #include <timer_session/connection.h>
@@ -17,7 +17,7 @@
 struct Taskloader_session_component : Genode::Rpc_object<Taskloader_session>
 {
 public:
-	Taskloader_session_component(Server::Entrypoint& ep);
+	Taskloader_session_component(Genode::Env &env);
 	virtual ~Taskloader_session_component();
 
 	// Create tasks in idle state from XML description.
@@ -39,39 +39,43 @@ public:
 
 	
 protected:
-	Server::Entrypoint& _ep;
+	Genode::Env& _env;
+	Genode::Entrypoint& _ep;
 	Task::Shared_data _shared;
-	Genode::Cap_connection _cap;
+	Genode::Heap _heap { _env.ram(), _env.rm() };
+	//Genode::Cap_connection _cap;
 
 	Genode::Attached_ram_dataspace _profile_data;
 
-	size_t _quota;
+	size_t _quota {_env.ram().ram_quota().value};
 
-	static Genode::Number_of_bytes _profile_ds_size();
-	static Genode::Number_of_bytes _trace_quota();
-	static Genode::Number_of_bytes _trace_buf_size();
+	Genode::Number_of_bytes _profile_ds_size();
+	Genode::Number_of_bytes _trace_quota();
+	Genode::Number_of_bytes _trace_buf_size();
 
 private:
 	bool verbose_debug=false;
-	Sched_controller::Connection sched;
+	Sched_controller::Connection sched {};
+	Task::Parent_services _parent_services { };
+	Task::Child_services  _child_services  { };
 };
 
 struct Taskloader_root_component : Genode::Root_component<Taskloader_session_component>
 {
 public:
-	Taskloader_root_component(Server::Entrypoint* ep, Genode::Allocator *allocator) :
+	Taskloader_root_component(Genode::Env &env, Genode::Entrypoint* ep, Genode::Allocator *allocator) :
 		Genode::Root_component<Taskloader_session_component>(&ep->rpc_ep(), allocator),
-		_ep(*ep)
+		_env(env)
 	{
-		PDBG("Creating root component.");
+		Genode::log("Creating root component.");
 	}
 
 protected:
-	Server::Entrypoint& _ep;
+	Genode::Env &_env;
 
-	Taskloader_session_component* _create_session(const char *args)
+	Taskloader_session_component* _create_session(const char *)
 	{
-		PDBG("Creating Taskloader session.");
-		return new (md_alloc()) Taskloader_session_component(_ep);
+		Genode::log("Creating Taskloader session.");
+		return new (md_alloc()) Taskloader_session_component(_env);
 	}
 };
