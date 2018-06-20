@@ -18,7 +18,15 @@ Task::Child_policy::Child_policy(Genode::Env &env, Genode::Allocator &alloc, Tas
 		_child(_env.rm(), _env.ep().rpc_ep(), *this)
 {
 }
-
+/*
+void Task::Child_policy::resource_request(Genode::Parent::Resource_args const &)
+{
+	Task::Event::Type type;
+	type=Task::Event::OUT_OF_QUOTA;
+        Task::log_profile_data(type, _task->_desc.id, _task->_shared);
+	Task::_child_destructor.submit_for_destruction(_task);
+}
+*/
 void Task::Child_policy::exit(int exit_value)
 {
 	Genode::Lock::Guard guard(_exit_lock);
@@ -39,6 +47,8 @@ void Task::Child_policy::exit(int exit_value)
 			type = Event::EXIT_CRITICAL; break;
 		case 19:
 			type = Event::EXIT_EXTERNAL; break;
+		case 20:
+			type = Event::EXIT_PERIOD; break;
 		default:
 			type = Event::EXIT_ERROR;
 	}
@@ -243,9 +253,11 @@ const char* Task::Event::type_name(Type type)
 		case EXIT_CRITICAL: return "EXIT_CRITICAL";
 		case EXIT_ERROR: return "EXIT_ERROR";
 		case EXIT_EXTERNAL: return "EXIT_EXTERNAL";
+		case EXIT_PERIOD: return "EXIT_PERIOD";
 		case EXTERNAL: return "EXTERNAL";
 		case NOT_SCHEDULED: return "NOT_SCHEDULED";
 		case JOBS_DONE: return "JOBS_DONE";
+		case OUT_OF_QUOTA: return "OUT_OF_QUOTA";
 		default: return "UNKNOWN";
 	}
 }
@@ -560,6 +572,9 @@ void Task::_start()
 	if (running())
 	{
 		PINF("Trying to start %s but previous instance still running or undestroyed. Abort.\n", _name.c_str());
+		Task::Event::Type type;
+		type = Event::EXIT_PERIOD;
+		Task::log_profile_data(type, _desc.id, _shared);
 		Task::_child_destructor.submit_for_destruction(this);
 		return;
 	}

@@ -76,8 +76,10 @@ public:
 		Genode::Pd_session_capability ref_pd_cap() const override { return _env.pd_session_cap(); }	
 		// All methods below will be called from the child thread most of the time, and not the task-manager thread. Watch out for race conditions.
 		virtual void exit(int exit_value) override;
+
 		//virtual const char *name() const override;
 		virtual Genode::Child_policy::Name name() const override;
+		//virtual void resource_request(Genode::Parent::Resource_args const &) override; 
 		Genode::Service &resolve_session_request(Genode::Service::Name const &service_name, Genode::Session_state::Args const &args) override;
 		//void filter_session_args(const char *service, char *args, Genode::size_t args_len) override;
 		//void filter_session_args(Service::Name service, char *args, Genode::size_t args_len) override;
@@ -154,7 +156,7 @@ public:
 			bool managed {};
 			Managed_info managed_info {};
 		};
-		enum Type { START = 0, EXIT, EXIT_CRITICAL, EXIT_ERROR, EXIT_EXTERNAL, EXTERNAL, NOT_SCHEDULED, JOBS_DONE };
+		enum Type { START = 0, EXIT, EXIT_CRITICAL, EXIT_ERROR, EXIT_EXTERNAL, EXIT_PERIOD, EXTERNAL, NOT_SCHEDULED, JOBS_DONE, OUT_OF_QUOTA };
 
 		static const char* type_name(Type type);
 
