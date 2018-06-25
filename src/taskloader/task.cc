@@ -7,23 +7,26 @@
 
 //#include <dom0-HW/dom0_connection.h>
 
-Task::Child_policy::Child_policy(Task& task) :
+Task::Child_policy::Child_policy(Genode::Env &env, Genode::Allocator &alloc, Task& task) :
+		_env(env),_alloc(alloc),
+		//_labeling_policy{task.name().c_str()},
+		_session_requester(env.ep().rpc_ep(), _env.ram(), _env.rm()),  //new
 		_task{&task},
-		_labeling_policy{task.name().c_str()},
 		_config_policy{"config", task._config.cap(), &task._child_ep},
-		_binary_policy{"binary", task._shared.binaries.at(task._desc.binary_name).cap(), &task._child_ep},
-		_active{true}
+		//_binary_policy{"binary", task._shared.binaries.at(task._desc.binary_name).cap(), &task._child_ep},
+		_active{true},
+		_child(_env.rm(), _env.ep().rpc_ep(), *this)
 {
 }
-
-void Task::Child_policy::resource_request(Genode::Parent::Resource_args const &args)
+/*
+void Task::Child_policy::resource_request(Genode::Parent::Resource_args const &)
 {
 	Task::Event::Type type;
 	type=Task::Event::OUT_OF_QUOTA;
         Task::log_profile_data(type, _task->_desc.id, _task->_shared);
 	Task::_child_destructor.submit_for_destruction(_task);
 }
-
+*/
 void Task::Child_policy::exit(int exit_value)
 {
 	Genode::Lock::Guard guard(_exit_lock);
@@ -50,76 +53,104 @@ void Task::Child_policy::exit(int exit_value)
 			type = Event::EXIT_ERROR;
 	}
 	
-	Task::log_profile_data(type, _task->_desc.id, _task->_shared);
+	//Task::log_profile_data(type, _task->_desc.id, _task->_shared);
+	_task->log_profile_data(type, _task->_desc.id, _task->_shared);
 	if(_task->jobs_done())
 	{
 		type=Task::Event::JOBS_DONE;
-                Task::log_profile_data(type, _task->_desc.id, _task->_shared);
+		_task->log_profile_data(type, _task->_desc.id, _task->_shared);
 	}
 	Dom0_server::Connection dom0;
 	dom0.send_profile(name());
-	Task::_child_destructor.submit_for_destruction(_task);
-	
+	//Task::_child_destructor.submit_for_destruction(_task);
+	_task->_child_destructor.submit_for_destruction(_task);
 	
 
 
 	
 }
-
+/*
+template <typename T>
+static Genode::Service *_find_service(Genode::Registry<T> &services,
+		                                      Genode::Service::Name const &name)
+{
+			Genode::Service *service = nullptr;
+			services.for_each([&] (T &s) {
+				if (!service && (s.name() == name))
+					service = &s; });
+			return service;
+}
+*/
+/*
 const char* Task::Child_policy::name() const
 {
 	return _task->name().c_str();
 }
-
+*/
+Genode::Child_policy::Name Task::Child_policy::name() const 
+{
+	return _task->name().c_str();
+}
 bool Task::Child_policy::active() const
 {
 	return _active;
 }
 
-Genode::Service* Task::Child_policy::resolve_session_request(const char* service_name, const char* args)
+Genode::Service &Task::Child_policy::resolve_session_request(Genode::Service::Name const &service_name, Genode::Session_state::Args const &args)
 {
 	Genode::Service* service = nullptr;
 
 	// Check for config file request.
-	if ((service = _config_policy.resolve_session_request(service_name, args)))
+	if ((service = _config_policy.resolve_session_request(service_name.string(), args.string())))
 	{
-		return service;
+		return *service;
 	}
 
-	// Check for binary file request.
-	if ((service = _binary_policy.resolve_session_request(service_name, args)))
+	/* Check for binary file request.
+	if ((service = _binary_policy.resolve_session_request(service_name.string(), args.string())))
 	{
-		return service;
+		return *service;
 	}
 
 	// Check child services.
-	if ((service = _task->_shared.child_services.find(service_name)))
+	if ((service = _find_service(_task->_shared.child_services, service_name)))
 	{
-		return service;
+		return *service;
 	}
-
+	*/
+	/* check for "session_requests" ROM request */
+			Genode::Session_label const label(Genode::label_from_args(args.string()));
+			if (service_name == Genode::Rom_session::service_name()
+			 && label.last_element() == Genode::Session_requester::rom_name())
+				return _session_requester.service();
 	// Check parent services.
+	/*
 	if ((service = _task->_shared.parent_services.find(service_name)))
 	{
-		return service;
+		return *service;
 	}
+	*/
+	if ((service = _find_service(_task->_shared.parent_services, service_name)))
+	{
+		return *service;
+	}
+	Genode::warning("Service" , service_name," requested by", name()," not found. Waiting for it to become available.");
+	throw Genode::Service_denied();
 
-	PINF("Service %s requested by %s not found. Waiting for it to become available.", service_name, name());
-
-	Genode::Client client;
-	return _task->_shared.child_services.wait_for_service(service_name, &client, name());
+	//Genode::Client client;
+	//return *(_task->_shared.child_services.wait_for_service(service_name, &client, name()));
 }
-
-void Task::Child_policy::filter_session_args(const char *service, char *args, Genode::size_t args_len)
+/*
+void Task::Child_policy::filter_session_args(Service::Name service, char *args, Genode::size_t args_len)
 {
 	_labeling_policy.filter_session_args(service, args, args_len);
 }
-
+*/
+/*
 bool Task::Child_policy::announce_service(
 	const char *service_name,
 	Genode::Root_capability root,
-	Genode::Allocator *alloc,
-	Genode::Server*)
+	Genode::Allocator *alloc)
 {
 	if (_task->_shared.child_services.find(service_name)) {
 		PWRN("%s: service %s is already registered", name(), service_name);
@@ -131,7 +162,22 @@ bool Task::Child_policy::announce_service(
 
 	return true;
 }
-
+*/
+void Task::Child_policy::announce_service(Genode::Service::Name const &service_name) 
+{
+	if(_find_service(_task->_shared.child_services, service_name)){
+		Genode::warning(name(), ": service ", service_name, " is already registered");
+		return;
+	}
+	
+	new (_alloc)
+		Task::Child_service(_task->_shared.child_services, service_name,
+		              	_session_requester.id_space(),
+		              	_child.session_factory(), *this,
+		              	_child.ram_session_cap(),
+		              	_child.pd_session_cap());
+}
+/*
 void Task::Child_policy::unregister_services()
 {
 	Genode::Service *rs;
@@ -140,32 +186,43 @@ void Task::Child_policy::unregister_services()
 		_task->_shared.child_services.remove(rs);
 	}
 }
+*/
 
 
-
-Task::Meta::Meta(const Task& task) :
-	ram{},
-	cpu{task.name().c_str(), (task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)), task._desc.deadline*1000, Genode::Affinity(Genode::Affinity::Space(_mon.get_num_cores(),1), Genode::Affinity::Location(1,0))},
-	rm{},
-	pd{},
-	server{ram}
+Task::Meta::Meta(Genode::Env &env, Task& task) :
+	_env(env),
+	//ram{},
+	cpu{_env, task.name().c_str(), long(task._desc.deadline*1000),(128-task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)), Genode::Affinity(Genode::Affinity::Space(_mon.get_num_cores(),1), Genode::Affinity::Location(1,0))},
+	//rm{},
+	pd{_env}
+	//server{ram}
 {
-	//Genode::log("prio ",(task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)));
-	ram.ref_account(Genode::env()->ram_session_cap());
-	if (Genode::env()->ram_session()->transfer_quota(ram.cap(), task._desc.quota) != 0)
+	pd.ref_account(_env.ram_session_cap());
+	/*
+	if (_env.ram().transfer_quota(pd.cap(), task._desc.quota))
 	{
 		PWRN("Failed to transfer RAM quota to child %s", task.name().c_str());
+	}
+	*/
+	try{
+		_env.ram().transfer_quota(pd.cap(), task._desc.quota);
+	}
+	catch (Genode::Out_of_ram) {
+		Genode::log("Failed to transfer RAM quota to child ", task.name().c_str());
 	}
 }
 
 
 
-Task::Meta_ex::Meta_ex(Task& task) :
-		Meta{task},
-		policy{task},
-		_initial_thread(cpu, pd.cap(), task.name().c_str()), //task._desc.binary_name.c_str()),
-		ldso_rom{"ld.lib.so"},
+Task::Meta_ex::Meta_ex(Genode::Env &env, Task& task) :
+		Meta{env, task},
+		_env(env),
+		//policy{_env, _heap, _task, _env.ram(), _env.ram_session_cap()},
+		policy{_env, _heap, task},
+		//_initial_thread(cpu, pd.cap(), task.name().c_str()), //task._desc.binary_name.c_str()),
+		ldso_rom{_env, "ld.lib.so"},
 		rmc(pd.address_space()),
+		/*
 		child {
 			task._shared.binaries.at(task._desc.binary_name).cap(),
 			ldso_rom.dataspace(),
@@ -175,11 +232,13 @@ Task::Meta_ex::Meta_ex(Task& task) :
 			ram,
 			cpu.cap(),
 			_initial_thread,
-			*Genode::env()->rm_session(),
+			_env.rm(),
 			rmc,
 			task._child_ep,
 			policy
 		}
+		*/
+		child{env.rm(), task._child_ep, policy}
 {
 }
 
@@ -205,16 +264,17 @@ const char* Task::Event::type_name(Type type)
 
 
 
-Task::Shared_data::Shared_data(size_t trace_quota, size_t trace_buf_size) :
+Task::Shared_data::Shared_data(Genode::Env &env, Task::Parent_services &parent_services, Task::Child_services &child_services, size_t trace_quota, size_t trace_buf_size) :
+	_env(env),
 	binaries{},
-	heap{Genode::env()->ram_session(), Genode::env()->rm_session()},
-	parent_services{},
-	trace{trace_quota, trace_buf_size, 0}
+	parent_services(parent_services),
+	child_services(child_services),
+	//tasks {_env},
+	trace{_env, trace_quota, trace_buf_size, 0}
 {
+	
 }
-
-
-
+/*
 Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& shared, const Genode::Xml_node& node, Sched_controller::Connection* ctrl) :
 		_shared(shared),
 		_desc{
@@ -246,6 +306,43 @@ Task::Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& sha
 	std::strncpy(_config.local_addr<char>(), config_node.addr(), config_node.size());
 	PINF("id: %u, name: %s, prio: %u, deadline: %u, wcet: %u, period: %u", _desc.id, _name.c_str(), _desc.priority, _desc.deadline, _desc.execution_time, _desc.period);
 }
+*/
+Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node, Sched_controller::Connection* ctrl) :
+		_env(env),
+		//_env1(env),
+		_shared(shared),
+		_desc{
+			_get_node_value<unsigned int>(node, "id"),
+			_get_node_value<unsigned int>(node, "executiontime"),
+			_get_node_value<unsigned int>(node, "criticaltime"),
+			_get_node_value<unsigned long>(node, "priority"),
+			_get_node_value<unsigned int>(node, "deadline"),
+			_get_node_value<unsigned int>(node, "period"),
+			_get_node_value<unsigned int>(node, "offset"),
+			_get_node_value<unsigned int>(node, "numberofjobs"),
+			_get_node_value<Genode::Number_of_bytes>(node, "quota"),
+			_get_node_value(node, "pkg", 32, "")},
+		_config{_env.ram(), _env.rm(), node.sub_node("config").size()},
+		_name{_make_name()},
+		_iteration{0},
+		_paused{true},
+		_start_timer{_env},
+		_kill_timer{_env},
+		_start_dispatcher{_env.ep(), *this, &Task::_start},
+		_kill_dispatcher{_env.ep(), *this, &Task::_kill_crit},
+		_idle_dispatcher{_env.ep(), *this, &Task::_idle},
+		//_child_ep{&cap, 12 * 1024, _name.c_str(), false},
+		//_child_ep{_env, 12 * 1024, _name.c_str()},
+		_child_ep{&_env.pd(), 12 * 1024, _name.c_str()},
+		_meta{nullptr},
+		_schedulable(true),
+		//_child_destructor{},
+		_controller(ctrl)
+{
+	const Genode::Xml_node& config_node = node.sub_node("config");
+	std::strncpy(_config.local_addr<char>(), config_node.addr(), config_node.size());
+	Genode::log("id:", _desc.id,", name:" , _name.c_str(),", prio:" , _desc.priority,", deadline:", _desc.deadline,", wcet:" , _desc.execution_time,", period:" , _desc.period);
+}
 
 Task::~Task()
 {
@@ -273,7 +370,7 @@ Task::Shared_data& Task::get_shared()
 
 bool Task::jobs_done()
 {
-	PDBG("iteration: %d num jobs: %d name: %s\n", _iteration, _desc.number_of_jobs, _name.c_str());
+	Genode::log("iteration: %d num jobs: %d name: %s\n", _iteration, _desc.number_of_jobs, _name.c_str());
 	return _iteration==_desc.number_of_jobs;
 
 }
@@ -307,7 +404,7 @@ void Task::run()
 	_paused = false;
 
 	// (Re-)Register timeout handlers.
-	Timer::Connection offset_timer;
+	Timer::Connection offset_timer {_env};
 	//PDBG("Waiting %dms",_desc.offset);
 	offset_timer.msleep(_desc.offset);
 	
@@ -320,7 +417,7 @@ void Task::run()
 	}
 	else
 	{
-		_start(0);
+		_start();
 	}
 }
 
@@ -375,7 +472,7 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 
 	event.type = type;
 	event.task_id = task_id;
-	event.time_stamp = shared.timer.now_us()/1000;
+	event.time_stamp = shared.timer.elapsed_us()/1000;
 
 	Event::Task_info* task_manager_info = nullptr;
 
@@ -407,8 +504,8 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 		{
 			task_info.managed = true;
 			task_info.managed_info.id = task->_desc.id;
-			task_info.managed_info.quota = task->_meta->ram.quota();
-			task_info.managed_info.used = task->_meta->ram.used();
+			task_info.managed_info.quota = task->_meta->pd.ram_quota().value;
+			task_info.managed_info.used = task->_meta->pd.used_ram().value;
 			task_info.managed_info.iteration = task->_iteration;
 		}
 		// Check if this is task-manager itself.
@@ -416,8 +513,8 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 		{
 			task_info.managed = true;
 			task_info.managed_info.id = 0;
-			task_info.managed_info.quota = Genode::env()->ram_session()->quota();
-			task_info.managed_info.used = Genode::env()->ram_session()->used();
+			task_info.managed_info.quota = _env.ram().ram_quota().value;
+			task_info.managed_info.used = _env.ram().used_ram().value;
 			task_info.managed_info.iteration = 0;
 
 			// Hack: there are two task-manager processes. We only flag the more active one as managed.
@@ -432,6 +529,10 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 		}
 	}
 }
+void Task::Child_policy::wakeup_async_service() 
+		{
+			_session_requester.trigger_update();
+		}
 
 std::string Task::_make_name() const
 {
@@ -441,7 +542,8 @@ std::string Task::_make_name() const
 	// return _desc.binary_name;
 }
 
-void Task::_start(unsigned)
+//void Task::_start(int)
+void Task::_start()
 {
 	if (jobs_done())
 	{
@@ -485,12 +587,12 @@ void Task::_start(unsigned)
 		return;
 	}
 
-	Genode::Attached_ram_dataspace& ds = bin_it->second;
+	//Genode::Attached_ram_dataspace& ds = bin_it->second;
 
 	++_iteration;
 	//PINF("Starting task %s with quota %u and priority %u in iteration %d", _name.c_str(), (size_t)_desc.quota, _desc.priority, _iteration);
 
-	if ((size_t)_desc.quota < 512 * 1024)
+	if ((size_t)_desc.quota.value < 512 * 1024)
 	{
 		PWRN("Warning: RAM quota for %s might be too low to hold meta data.", _name.c_str());
 	}
@@ -502,15 +604,16 @@ void Task::_start(unsigned)
 	}
 
 	// Abort if RAM quota insufficient. Alternatively, we could give all remaining quota to the child.
-	if (_desc.quota > Genode::env()->ram_session()->avail()) {
-		PERR("Not enough RAM quota for task %s, requested: %u, available: %u", _name.c_str(), (size_t)_desc.quota, Genode::env()->ram_session()->avail());
+	if (_desc.quota.value > _env.ram().avail_ram().value) {
+		//PERR("Not enough RAM quota for task %s, requested: %d, available: %d", _name.c_str(), (size_t)_desc.quota, _env.ram().avail_ram().value);
+		Genode::log("Not enough RAM quota for task" , _name.c_str(), "requested:",_desc.quota, "available:", _env.ram().avail_ram().value);
 		return;
 	}
 
 	try
 	{
 		// Create child and activate entrypoint.
-		_meta = new (&_shared.heap) Meta_ex(*this);
+		_meta = new (&_shared.heap) Meta_ex(_env, *this);
 		_child_ep.activate();
 	}
 	catch (Genode::Cpu_session::Thread_creation_failed)
@@ -527,6 +630,7 @@ void Task::_start(unsigned)
 
 Task::Child_destructor_thread::Child_destructor_thread() :
 	Thread_deprecated{"child_destructor"},
+	//_env(env),
 	_lock{},
 	_queued{}
 {
@@ -535,6 +639,7 @@ Task::Child_destructor_thread::Child_destructor_thread() :
 
 Task::Child_start_thread::Child_start_thread() :
 	Thread_deprecated{"child_start"},
+	//_env(env),	
 	_lock{},
 	_queued{}
 {
@@ -566,11 +671,11 @@ void Task::Child_destructor_thread::entry()
 			_queued.remove(task);
 			_lock.unlock();
 			//_timer.msleep(100);
-			PDBG("Destroying task %s", task->_name.c_str());
+			Genode::log("Destroying task %s", task->_name.c_str());
 			int time_before=_timer.elapsed_ms();
 			Genode::destroy(task->_shared.heap, task->_meta);
 			task->_meta = nullptr;
-			PDBG("Done Destruction. Took: %d",_timer.elapsed_ms()-time_before);
+			Genode::log("Done Destruction. Took: %d",_timer.elapsed_ms()-time_before);
 		}
 		_lock.unlock();
 		
@@ -585,7 +690,7 @@ void Task::Child_start_thread::entry()
 		_lock.lock();
 		for (Task* task : _queued)
 		{
-			PDBG("Starting task %s", task->_name.c_str());
+			Genode::log("Starting task %s", task->_name.c_str());
 			task->run();
 		}
 		_queued.clear();
@@ -595,9 +700,9 @@ void Task::Child_start_thread::entry()
 
 Task::Child_destructor_thread Task::_child_destructor;
 Task::Child_start_thread Task::_child_start;
-Mon_manager::Connection Task::_mon;
+Mon_manager::Connection Task::_mon	;
 
-void Task::_kill_crit(unsigned)
+void Task::_kill_crit()
 {
 	// Check for paused status for the rare case where timer signals have been triggered before stopping but are handled after.
 	if (!_paused)
@@ -618,7 +723,7 @@ void Task::_kill(int exit_value)
 	}
 }
 
-void Task::_idle(unsigned)
+void Task::_idle()
 {
 	// Do nothing.
 }

@@ -8,7 +8,7 @@
 struct Taskloader_session : Genode::Session
 {
 	static const char *service_name() { return "taskloader"; }
-
+	enum { CAP_QUOTA = 2 };
 	virtual void add_tasks(Genode::Ram_dataspace_capability xml_ds_cap) = 0;
 	virtual void clear_tasks() = 0;
 	virtual Genode::Ram_dataspace_capability binary_ds(Genode::Ram_dataspace_capability name_ds_cap, size_t size) = 0;
