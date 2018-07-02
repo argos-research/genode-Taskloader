@@ -254,14 +254,12 @@ protected:
 	class Child_destructor_thread : Genode::Thread_deprecated<2*4096>
 	{
 	public:
-		//Genode::Env &_env;
 		Child_destructor_thread();
 		void submit_for_destruction(Task* task);
 
 	private:
 		Genode::Lock _lock;
 		std::list<Task*> _queued;
-		static Timer::Connection _timer;
 
 		void entry() override;
 	};
@@ -276,7 +274,6 @@ protected:
 	private:
 		Genode::Lock _lock;
 		std::list<Task*> _queued;
-		static Timer::Connection _timer;
 
 		void entry() override;
 	};
