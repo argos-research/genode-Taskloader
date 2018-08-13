@@ -3,14 +3,16 @@
 #include <taskloader/taskloader_client.h>
 #include <base/connection.h>
 
-struct Taskloader_connection : Genode::Connection<Taskloader_session>, Taskloader_session_client
-{
-	Taskloader_connection() :
-		/* create session */
-		Genode::Connection<Taskloader_session>(session("foo, ram_quota=1M")),
+namespace Taskloader {
 
-		/* initialize RPC interface */
-		Taskloader_session_client(cap())
+	struct Connection : Genode::Connection<Session>, Session_client
 	{
-	}
-};
+		Connection(Genode::Env &env) :
+		/* create session */
+		Genode::Connection<Taskloader::Session>(env,
+							session(env.parent(),
+							"ram_quota=6K, cap_quota=4")),
+							Session_client(cap())
+		{ }
+	};
+}

@@ -25,15 +25,35 @@
 #include <base/service.h>
 #include <base/affinity.h>
 #include <os/session_requester.h>
+#include <dom0-HW/dom0_connection.h>
 
+template <typename T>
+	inline T &find_service(Genode::Registry<T> &services,
+	                       Genode::Service::Name const &name)
+	{
+		T *service = nullptr;
+		services.for_each([&] (T &s) {
 
+			if (service || s.name() != name)
+				return;
+
+			service = &s;
+		});
+
+		//if (!service)
+			//throw Service_denied();
+
+		//if (service->abandoned())
+			//throw Service_denied();
+
+		return *service;
+	}
 
 // Noncopyable because dataspaces might get invalidated.
 class Task : Genode::Noncopyable
 {
 public:
 	Genode::Env &_env;
-	//static Genode::Env &_env1;
 	Genode::Heap _heap {_env.ram(), _env.rm()};
 	// Policy for handling binary and service requests.
 	struct Child_policy : public Genode::Child_policy,
@@ -42,7 +62,6 @@ public:
 	private:
 		Genode::Env &_env;
 		Genode::Allocator &_alloc;
-		//Task::Child_destructor_thread &_child_destructor;
 		Genode::Session_requester _session_requester;
 		template <typename T>
 		static Genode::Service *_find_service(Genode::Registry<T> &services,
@@ -56,78 +75,42 @@ public:
 		}
 		void wakeup_async_service() override;
 	public:
-		//typedef Child_policy::Name Name;
-		//typedef Session_label      Label;
-		
-		//Child_policy(Genode::Env &env, Genode::Allocator &alloc, Task::Child_destructor_thread& child_destructor, Task& task);
 		Child_policy(Genode::Env &env, Genode::Allocator &alloc, Task& task);
 		Child_policy(const Child_policy&);
 		Child_policy& operator = (const Child_policy&);
-		~Child_policy()
-		{
-			using namespace Genode;
-			/* unregister services */
-			_task->_shared.child_services.for_each(
-				[&] (Task::Child_service &service) {
-					if (service.has_id_space(_session_requester.id_space()))
-						Genode::destroy(_alloc, &service); });
-		}
+		~Child_policy()	{ }
 		Genode::Pd_session           &ref_pd()           override { return _env.pd(); }
 		Genode::Pd_session_capability ref_pd_cap() const override { return _env.pd_session_cap(); }	
 		// All methods below will be called from the child thread most of the time, and not the task-manager thread. Watch out for race conditions.
 		virtual void exit(int exit_value) override;
-
-		//virtual const char *name() const override;
 		virtual Genode::Child_policy::Name name() const override;
-		//virtual void resource_request(Genode::Parent::Resource_args const &) override; 
 		Genode::Service &resolve_session_request(Genode::Service::Name const &service_name, Genode::Session_state::Args const &args) override;
-		//void filter_session_args(const char *service, char *args, Genode::size_t args_len) override;
-		//void filter_session_args(Service::Name service, char *args, Genode::size_t args_len) override;
-		/*
-		bool announce_service(
-			const char *service_name,
-			Genode::Root_capability root,
-			Genode::Allocator *alloc) override;
-		void unregister_services() override;
-		*/
+		virtual void init(Genode::Pd_session &, Genode::Capability<Genode::Pd_session>) override;
+		virtual void init(Genode::Cpu_session &, Genode::Capability<Genode::Cpu_session>) override;
 		void announce_service(Genode::Service::Name const &service_name) override;
 		virtual bool active() const;
 		
+		
 	protected:
 		Task* _task;
-		Init::Child_policy_provide_rom_file _config_policy;
+		//Init::Child_policy_provide_rom_file _config_policy;
+		Init::Child_policy_provide_rom_file _binary_policy;
 		Genode::Lock _exit_lock {};
 		bool _active;
-		Genode::Child _child;
-	};
-
-	// Part of Meta_ex that needs constructor initialization (transferring ram quota).
-	struct Meta
-	{
 	public:
-		Genode::Env &_env;
-		//Meta(Genode::Env &env, const Task& task);
-		Meta(Genode::Env &env, Task& task);	
-		//Genode::Ram_connection ram;
-		Genode::Cpu_connection cpu;
-		//Genode::Rm_connection rm;
-		Genode::Pd_connection pd;
-		//Genode::Server server;
+		Genode::Child _child;
+		
 	};
 
 	// Meta data that needs to be dynamically allocated on each start request.
-	struct Meta_ex : Meta
+	struct Meta_ex
 	{
 	public:
 		Genode::Env& _env;
 		Genode::Heap _heap {_env.ram(), _env.rm()};
 		Meta_ex(Genode::Env& env, Task& task);
-		Mon_manager::Connection mon {};
+		Mon_manager::Connection mon {_env};
 		Child_policy policy;
-		//Genode::Child::Initial_thread _initial_thread;
-		Genode::Rom_connection ldso_rom;
-		Genode::Region_map_client rmc ;
-		Genode::Child child;
 	};
 
 	// Single event of the profiling log data.
@@ -201,14 +184,11 @@ public:
 		std::unordered_map<std::string, Genode::Attached_ram_dataspace> binaries;
 
 		// Heap on which to create the init child.
-		//Genode::Heap heap;
 		Genode::Heap heap { _env.ram(), _env.rm() };
 
 		// Core services provided by the parent.
-		//Genode::Service_registry parent_services;
 		Task::Parent_services &parent_services;
 		// Services provided by the started children, if any.
-		//Genode::Service_registry child_services;
 		Task::Child_services  &child_services;
 		// Trace connection used for execution time of tasks.
 		Genode::Trace::Connection trace;
@@ -225,8 +205,7 @@ public:
 		Genode::Lock log_lock {};
 	};
 
-	//Task(Server::Entrypoint& ep, Genode::Cap_connection& cap, Shared_data& shared, const Genode::Xml_node& node, Sched_controller::Connection* ctrl);
-	Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node, Sched_controller::Connection* ctrl);
+	Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node);//, Sched_controller::Connection* ctrl);
 	// Warning: The Task dtor may be empty but tasks should be stopped before destroying them, preferably with a short wait inbetween to allow the child destructor thread to kill them properly.
 	virtual ~Task();
 	Task(const Task&);
@@ -239,7 +218,6 @@ public:
 	const Description& desc() const;
 	Rq_task::Rq_task getRqTask();
 
-	//static Task* task_by_name(std::list<Task>& tasks, const std::string& name);
 	Task* task_by_name(std::list<Task>& tasks, const std::string& name);
 	void log_profile_data(Event::Type type, int id, Shared_data& shared);
 
@@ -264,26 +242,15 @@ protected:
 		void entry() override;
 	};
 
-	class Child_start_thread : Genode::Thread_deprecated<2*4096>
-	{
-	public:
-		//Genode::Env &_env;
-		Child_start_thread();
-		void submit_for_start(Task* task);
-
-	private:
-		Genode::Lock _lock;
-		std::list<Task*> _queued;
-
-		void entry() override;
-	};
-
+public:
 	Shared_data& _shared;
-
+protected:
 	Description _desc;
 
 	Genode::Attached_ram_dataspace _config;
+public:
 	const std::string _name;
+protected:
 	unsigned int _iteration;
 
 	bool _paused;
@@ -293,26 +260,20 @@ protected:
 	Timer::Connection _kill_timer {_env};
 
 	// Timer dispatchers registering callbacks.
-	/*
-	Genode::Signal_rpc_member<Task> _start_dispatcher;
-	Genode::Signal_rpc_member<Task> _kill_dispatcher;
-	Genode::Signal_rpc_member<Task> _idle_dispatcher;
-	*/
 	Genode::Signal_handler<Task> _start_dispatcher;
 	Genode::Signal_handler<Task> _kill_dispatcher;
 	Genode::Signal_handler<Task> _idle_dispatcher;
+	
 	// Child process entry point.
 	Genode::Rpc_entrypoint _child_ep;
-	//Genode::Entrypoint _child_ep;
-	
+public:
 	// Child meta data.
 	Meta_ex* _meta;
-
+protected:
 	// Combine ID and binary name into a unique name, e.g. 01.namaste
 	std::string _make_name() const;
 
 	// Start task once.
-	//void _start(unsigned);
 	void _start();
 	void _kill_crit();
 	void _kill(int exit_value = 1);
@@ -323,7 +284,6 @@ protected:
 
 	// Get XML node value (not attribute) if it exists.
 	template <typename T>
-	//static T _get_node_value(const Genode::Xml_node& config_node, const char* type, T default_val = T())
 	T _get_node_value(const Genode::Xml_node& config_node, const char* type, T default_val = T())
 	{
 		if (config_node.has_sub_node(type))
@@ -336,14 +296,12 @@ protected:
 	}
 
 	// Get XML node string value (not attribute) if it exists.
-	//static std::string _get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val = "");
 	std::string _get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val = "");
 private:
 	bool _schedulable;
 	
 public:
+	Mon_manager::Connection _mon{_env};
 	static Child_destructor_thread _child_destructor;
-	static Child_start_thread _child_start;
-	static Mon_manager::Connection _mon;
-	Sched_controller::Connection* _controller;
+	//Sched_controller::Connection* _controller;
 };

@@ -1,3 +1,3 @@
 TARGET = taskloader
-SRC_CC = main.cc task.cc taskloader_session_component.cc
-LIBS = base libc stdcxx
+SRC_CC = main.cc task.cc taskloader.cc
+LIBS = base stdcxx

@@ -4,10 +4,11 @@
 #include <base/rpc_client.h>
 #include <taskloader/taskloader_session.h>
 
-struct Taskloader_session_client : Genode::Rpc_client<Taskloader_session>
+namespace Taskloader {
+struct Session_client : Genode::Rpc_client<Session>
 {
-	Taskloader_session_client(Genode::Capability<Taskloader_session> cap) :
-		Genode::Rpc_client<Taskloader_session>(cap) { }
+	Session_client(Genode::Capability<Session> cap) :
+		Genode::Rpc_client<Session>(cap) { }
 
 	void add_tasks(Genode::Ram_dataspace_capability xml_ds_cap)
 	{
@@ -40,3 +41,4 @@ struct Taskloader_session_client : Genode::Rpc_client<Taskloader_session>
 	}
 
 };
+}
