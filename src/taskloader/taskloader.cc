@@ -27,7 +27,7 @@ namespace Taskloader{
 	{
 		Genode::Region_map* rm = &(_env.rm());
 		const char* xml = rm->attach(xml_ds_cap);
-		Genode::log("Parsing XML file: ", xml);
+		//Genode::log("Parsing XML file: ", xml);
 		Genode::Xml_node root(xml);
 		Rq_task::Rq_task rq_task;
 
@@ -39,15 +39,15 @@ namespace Taskloader{
 			_shared.tasks.emplace_back(_env, _shared, node);
 			//Add task to Controller to perform a schedulability test for core 1
 			rq_task = _shared.tasks.back().getRqTask();
-			int time_before=_shared.timer.elapsed_ms();
+			//int time_before=_shared.timer.elapsed_ms();
 			int result = 0;//sched.new_task(rq_task, 1);
-			Genode::log("Done Analysis. Took: ",_shared.timer.elapsed_ms()-time_before);
+			//Genode::log("Done Analysis. Took: ",_shared.timer.elapsed_ms()-time_before);
 			if (result != 0){
-				Genode::log("Task with id ",rq_task.task_id," was not accepted by the controller");
+				//Genode::log("Task with id ",rq_task.task_id," was not accepted by the controller");
 				_shared.tasks.back().setSchedulable(false);
 			}
 			else{
-				Genode::log("Task with id ",rq_task.task_id," was accepted by the controller");
+				//Genode::log("Task with id ",rq_task.task_id," was accepted by the controller");
 				_shared.tasks.back().setSchedulable(true);
 			}
 		};
@@ -63,7 +63,7 @@ namespace Taskloader{
 	{
 		Genode::Region_map* rm = &(_env.rm());
 		const char* name = rm->attach(name_ds_cap);
-		Genode::log("Reserving ", size," bytes for binary ", name);
+		//Genode::log("Reserving ", size," bytes for binary ", name);
 		Genode::Ram_session* ram = &(_env.ram());
 
 		// Hoorray for C++ syntax. This basically forwards ctor arguments, constructing the dataspace in-place so there is no copy or dtor call involved which may invalidate the attached pointer.
@@ -76,7 +76,7 @@ namespace Taskloader{
 	// Destruct all tasks.
 	void Taskloader::clear_tasks()
 	{
-
+		_shared.tasks.clear();
 	}
 
 	// Start idle tasks.
@@ -103,13 +103,39 @@ namespace Taskloader{
 		Genode::log("Stopping ", _shared.tasks.size()," task", _shared.tasks.size() == 1 ? "" : "s", ".");
 		for (Task& task : _shared.tasks)
 		{
-			Task::_child_destructor.submit_for_destruction(&task);
+			task._kill(19);
 		}
 	}
 
 	Genode::Ram_dataspace_capability Taskloader::profile_data()
 	{
-		return _env.ram().alloc(10);
+		Genode::log("profile data");
+		_profile_data.realloc(&_env.ram(), _profile_ds_size());
+		/* There is some shitty race conditions going on, that produces empty logs */
+		if(_shared.event_log.size())
+		{
+			Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
+			{
+
+				xml.node("events", [&]()
+				{
+					for (const Task::Event& event : _shared.event_log)
+					{
+						xml.node("event", [&]()
+						{
+							xml.attribute("type", Task::Event::type_name(event.type));
+							xml.attribute("task-id", std::to_string(event.task_id).c_str());
+							xml.attribute("time-stamp", std::to_string(event.time_stamp).c_str());
+						});
+					}
+				});
+			});
+			_shared.event_log.clear();
+		}
+
+
+
+	return _profile_data.cap();
 	}
 
 	Genode::Number_of_bytes Taskloader::_trace_quota()

@@ -55,5 +55,8 @@ class Taskloader
 		Genode::Number_of_bytes _profile_ds_size();
 		Genode::Number_of_bytes _trace_quota();
 		Genode::Number_of_bytes _trace_buf_size();
+
+		Mon_manager::Connection _mon{_env};
+		//Dom0_server::Connection dom0{_env};
 };
 }
