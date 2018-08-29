@@ -208,7 +208,7 @@ public:
 		Genode::Lock log_lock {};
 	};
 
-	Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node, int target_socket);//, Sched_controller::Connection* ctrl);
+	Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node);//, Sched_controller::Connection* ctrl);
 	// Warning: The Task dtor may be empty but tasks should be stopped before destroying them, preferably with a short wait inbetween to allow the child destructor thread to kill them properly.
 	virtual ~Task();
 	Task(const Task&);
@@ -294,6 +294,5 @@ private:
 	
 	
 public:
-	int _target_socket;
 	//Sched_controller::Connection* _controller;
 };

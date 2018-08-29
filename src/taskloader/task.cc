@@ -239,7 +239,7 @@ Task::Shared_data::Shared_data(Genode::Env &env, Task::Parent_services &parent_s
 	
 }
 
-Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node, int target_socket)://, Sched_controller::Connection* ctrl) :
+Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node)://, Sched_controller::Connection* ctrl) :
 		_env(env),
 		_shared(shared),
 		_desc{
@@ -264,8 +264,7 @@ Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node, 
 		_idle_dispatcher{_env.ep(), *this, &Task::_idle},
 		_child_ep{&_env.pd(), 12 * 1024, _name.c_str()},
 		_meta{nullptr},
-		_schedulable(true),
-		_target_socket(target_socket)//,
+		_schedulable(true)//,
 		//_controller(ctrl)
 {
 	const Genode::Xml_node& config_node = node.sub_node("config");
