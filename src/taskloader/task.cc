@@ -6,16 +6,16 @@
 Task::Child_policy::Child_policy(Genode::Env &env, Genode::Allocator &alloc, Task& task) :
 	_env(env),_alloc(alloc),
 	_session_requester(env.ep().rpc_ep(), _env.ram(), _env.rm()),
-	_task{&task},
-	//_config_policy{name(), task._config.cap(), &task._child_ep},
+	_task{task},
+	_config_policy{"config", task._config.cap(), &task._child_ep},
 	_binary_policy{name(), task._shared.binaries.at(task._desc.binary_name).cap(), &task._child_ep},
 	_active{true},
+	soft_exit{false},
 	_child(_env.rm(), _env.ep().rpc_ep(), *this)
 { }
 
 void Task::Child_policy::exit(int exit_value)
 {
-	Genode::Lock::Guard guard(_exit_lock);
 	// Already exited, waiting for destruction.
 	if (!_active)
 	{
@@ -26,30 +26,108 @@ void Task::Child_policy::exit(int exit_value)
 	Task::Event::Type type;
 	switch (exit_value)
 	{
+		
 		case 0:
-			type = Event::EXIT; break;
+			type = Event::EXIT;
+			_active=true;
+			soft_exit=true;
+			break;
 		case 17:
-			type = Event::EXIT_CRITICAL; break;
+			if(!soft_exit)
+			{
+				type = Event::EXIT_CRITICAL;
+			}
+			else
+			{
+				soft_exit=false;
+				_task._meta->policy._child.~Child();
+				_task._meta = nullptr;
+				return;
+			}
+			_task._meta->policy._child.~Child();
+			_task._meta = nullptr;
+			break;
 		case 19:
-			type = Event::EXIT_EXTERNAL; break;
+			if(!soft_exit)
+			{
+				type = Event::EXIT_EXTERNAL;
+			}
+			else
+			{
+				soft_exit=false;
+				_task._meta->policy._child.~Child();
+				_task._meta = nullptr;
+				return;
+			}
+			_task._meta->policy._child.~Child();
+			_task._meta = nullptr;
+			break;
 		case 20:
-			type = Event::EXIT_PERIOD; break;
+			if(!soft_exit)
+			{
+				type = Event::EXIT_PERIOD;
+			}
+			else
+			{
+				soft_exit=false;
+				_task._meta->policy._child.~Child();
+				_task._meta = nullptr;
+				return;
+			}
+			_task._meta->policy._child.~Child();
+			_task._meta = nullptr;
+			break;
 		default:
-			type = Event::EXIT_ERROR;
+			if(!soft_exit)
+			{
+				type = Event::EXIT_ERROR;
+			}
+			else
+			{
+				soft_exit=false;
+				_task._meta->policy._child.~Child();
+				_task._meta = nullptr;
+				return;
+			}
+			_task._meta->policy._child.~Child();
+			_task._meta = nullptr;
 	}
 	
-	_task->log_profile_data(type, _task->_desc.id, _task->_shared);
-	if(_task->jobs_done())
+	_task.log_profile_data(type, _task._desc.id, _task._shared);
+	if(_task.jobs_done())
 	{
 		type=Task::Event::JOBS_DONE;
-		_task->log_profile_data(type, _task->_desc.id, _task->_shared);
+		_task.log_profile_data(type, _task._desc.id, _task._shared);
 	}
-	Task::_child_destructor.submit_for_destruction(_task);
+	Dom0_server::Connection dom0{_env};
+	Genode::Attached_ram_dataspace _profile_data(_env.ram(),_env.rm(), 10000);
+	if(_task._shared.event_log.size())
+			{
+				Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
+				{
+
+					xml.node("events", [&]()
+					{
+						for (const Task::Event& event : _task._shared.event_log)
+						{
+							xml.node("event", [&]()
+							{
+								xml.attribute("type", Task::Event::type_name(event.type));
+								xml.attribute("task-id", std::to_string(event.task_id).c_str());
+								xml.attribute("time-stamp", std::to_string(event.time_stamp).c_str());
+							});
+						}
+					});
+				});
+				_task._shared.event_log.clear();
+			}
+	dom0.send_profile(_profile_data.cap());
+	return;
 }
 
 Genode::Child_policy::Name Task::Child_policy::name() const 
 {
-	return _task->name().c_str();
+	return _task.name().c_str();
 }
 bool Task::Child_policy::active() const
 {
@@ -61,11 +139,11 @@ void Task::Child_policy::init(Genode::Pd_session &session, Genode::Capability<Ge
 	size_t const initial_session_costs =
 		session_alloc_batch_size()*_child.session_factory().session_costs();
 
-	Genode::Ram_quota const ram_quota { 100000 > initial_session_costs
-	                          ? 100000 - initial_session_costs
+	Genode::Ram_quota const ram_quota { _task._desc.quota.value > initial_session_costs
+	                          ? _task._desc.quota.value - initial_session_costs
 	                          : 0 };
 
-	Genode::Cap_quota const cap_quota { 100 };
+	Genode::Cap_quota const cap_quota { 25 };
 
 	try { _env.pd().transfer_quota(cap, cap_quota); }
 	catch (Genode::Out_of_caps) {
@@ -105,20 +183,16 @@ void Task::Child_policy::init(Genode::Cpu_session &session, Genode::Capability<G
 Genode::Service &Task::Child_policy::resolve_session_request(Genode::Service::Name const &name, Genode::Session_state::Args const &args)
 {
 	Genode::Service* service = nullptr;
-	//Genode::log(name, " session request ", args);
 
 	if ((service = _binary_policy.resolve_session_request(name.string(), args.string())))
 	{
-		//PINF("binary policy");
 		return *service;
 	}
-	/*if ((service = _config_policy.resolve_session_request(name.string(), args.string())))
+	if ((service = _config_policy.resolve_session_request(name.string(), args.string())))
 	{
-		PINF("config policy");
 		return *service;
-	}*/
-	//PINF("parent policy");
-	return find_service(_task->_shared.parent_services, name);
+	}
+	return find_service(_task._shared.parent_services, name);
 }
 
 void Task::Child_policy::announce_service(Genode::Service::Name const &) 
@@ -165,7 +239,7 @@ Task::Shared_data::Shared_data(Genode::Env &env, Task::Parent_services &parent_s
 	
 }
 
-Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node)://, Sched_controller::Connection* ctrl) :
+Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node, int target_socket)://, Sched_controller::Connection* ctrl) :
 		_env(env),
 		_shared(shared),
 		_desc{
@@ -190,12 +264,12 @@ Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node):
 		_idle_dispatcher{_env.ep(), *this, &Task::_idle},
 		_child_ep{&_env.pd(), 12 * 1024, _name.c_str()},
 		_meta{nullptr},
-		_schedulable(true)//,
+		_schedulable(true),
+		_target_socket(target_socket)//,
 		//_controller(ctrl)
 {
 	const Genode::Xml_node& config_node = node.sub_node("config");
 	std::strncpy(_config.local_addr<char>(), config_node.addr(), config_node.size());
-	Genode::log("id:", _desc.id,", name:" , _name.c_str(),", prio:" , _desc.priority,", deadline:", _desc.deadline,", wcet:" , _desc.execution_time,", period:" , _desc.period);
 }
 
 Task::~Task()
@@ -224,9 +298,7 @@ Task::Shared_data& Task::get_shared()
 
 bool Task::jobs_done()
 {
-	Genode::log("iteration: ",_iteration," num jobs: ",_desc.number_of_jobs," name: ", _name.c_str());
 	return _iteration==_desc.number_of_jobs;
-
 }
 
 Rq_task::Rq_task Task::getRqTask()
@@ -398,7 +470,6 @@ void Task::_start()
 	{
 		//trigger optimization to let all remaining tasks finish running
 		//_controller->scheduling_allowed(_name.c_str());
-		PINF("%s JOBS DONE!", _name.c_str());
 		return;
 	}
 	if(_desc.deadline>0)
@@ -420,11 +491,12 @@ void Task::_start()
 
 	if (running())
 	{
-		PINF("Trying to start %s but previous instance still running or undestroyed. Abort.\n", _name.c_str());
-		Task::Event::Type type;
-		type = Event::EXIT_PERIOD;
-		Task::log_profile_data(type, _desc.id, _shared);
-		Task::_child_destructor.submit_for_destruction(this);
+		//Genode::log("Trying to start ",_name.c_str()," but previous instance still running or undestroyed. Abort.");
+		//Task::Event::Type type;
+		//type = Event::EXIT_PERIOD;
+		//Task::log_profile_data(type, _desc.id, _shared);
+		//Task::_child_destructor.submit_for_destruction(this);
+		_meta->policy._child.exit(20);
 		return;
 	}
 
@@ -439,7 +511,6 @@ void Task::_start()
 	//Genode::Attached_ram_dataspace& ds = bin_it->second;
 
 	++_iteration;
-	//PINF("Starting task %s with quota %u and priority %u in iteration %d", _name.c_str(), (size_t)_desc.quota, _desc.priority, _iteration);
 
 	if ((size_t)_desc.quota.value < 512 * 1024)
 	{
@@ -459,12 +530,15 @@ void Task::_start()
 		return;
 	}
 
+	if(_meta->policy.active())
+	{
+		Genode::log("Still active!");
+		return;
+	}
+
 	try
 	{
-		// Create child and activate entrypoint.
-		Genode::log("Trying to create child");
 		_meta = new (&_shared.heap) Meta_ex(_env, *this);
-		//_child_ep.activate();
 	}
 	catch (Genode::Cpu_session::Thread_creation_failed)
 	{
@@ -482,7 +556,6 @@ void Task::_kill_crit()
 {
 	if (!_paused)
 	{
-		PINF("Critical time reached for %s", _name.c_str());
 		_kill(17);
 	}
 }
@@ -491,8 +564,6 @@ void Task::_kill(int exit_value)
 {
 	if (_meta && _meta->policy.active())
 	{
-		PINF("Force-exiting %s", _name.c_str());
-		// Child::exit() is usually called from the child thread. Use this carefully.
 		_meta->policy._child.exit(exit_value);
 	}
 }
@@ -530,26 +601,3 @@ std::string Task::_get_node_value(const Genode::Xml_node& config_node, const cha
 	}
 	return default_val;
 }
-
-Task::Child_destructor_thread::Child_destructor_thread() :
-	Thread_deprecated{"child_destructor"},
-	_lock{},
-	_queued{}
-{
-	start();
-}
-
-void Task::Child_destructor_thread::submit_for_destruction(Task* task)
-{
-	Genode::log("Destructing ",task->_name.c_str());
-	Genode::destroy(task->_shared.heap, task->_meta);
-	task->_meta = nullptr;
-	
-}
-
-void Task::Child_destructor_thread::entry()
-{
-
-}
-
-Task::Child_destructor_thread Task::_child_destructor;

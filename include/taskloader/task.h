@@ -1,7 +1,7 @@
 #pragma once
 
 #include <dom0-HW/dom0_connection.h>
-
+#include <taskloader/taskloader_connection.h>
 #include <list>
 #include <unordered_map>
 #include <elf.h>
@@ -25,7 +25,8 @@
 #include <base/service.h>
 #include <base/affinity.h>
 #include <os/session_requester.h>
-#include <dom0-HW/dom0_connection.h>
+
+#include <lwip/genode.h>
 
 template <typename T>
 	inline T &find_service(Genode::Registry<T> &services,
@@ -89,17 +90,19 @@ public:
 		virtual void init(Genode::Cpu_session &, Genode::Capability<Genode::Cpu_session>) override;
 		void announce_service(Genode::Service::Name const &service_name) override;
 		virtual bool active() const;
+		Genode::Id_space<Genode::Parent::Server> &server_id_space() override {
+			return _session_requester.id_space(); }
 		
 		
 	protected:
-		Task* _task;
-		//Init::Child_policy_provide_rom_file _config_policy;
+		Task &_task;
+		Init::Child_policy_provide_rom_file _config_policy;
 		Init::Child_policy_provide_rom_file _binary_policy;
-		Genode::Lock _exit_lock {};
+	protected:
 		bool _active;
+		bool soft_exit;
 	public:
 		Genode::Child _child;
-		
 	};
 
 	// Meta data that needs to be dynamically allocated on each start request.
@@ -205,7 +208,7 @@ public:
 		Genode::Lock log_lock {};
 	};
 
-	Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node);//, Sched_controller::Connection* ctrl);
+	Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node, int target_socket);//, Sched_controller::Connection* ctrl);
 	// Warning: The Task dtor may be empty but tasks should be stopped before destroying them, preferably with a short wait inbetween to allow the child destructor thread to kill them properly.
 	virtual ~Task();
 	Task(const Task&);
@@ -227,20 +230,6 @@ public:
 	unsigned int get_id();
 	Shared_data& get_shared();
 	bool jobs_done();
-
-protected:
-	class Child_destructor_thread : Genode::Thread_deprecated<2*4096>
-	{
-	public:
-		Child_destructor_thread();
-		void submit_for_destruction(Task* task);
-
-	private:
-		Genode::Lock _lock;
-		std::list<Task*> _queued;
-
-		void entry() override;
-	};
 
 public:
 	Shared_data& _shared;
@@ -276,7 +265,9 @@ protected:
 	// Start task once.
 	void _start();
 	void _kill_crit();
+public:
 	void _kill(int exit_value = 1);
+protected:
 	void _idle();
 	void _stop_timers();
 	void _stop_kill_timer();
@@ -299,9 +290,10 @@ protected:
 	std::string _get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val = "");
 private:
 	bool _schedulable;
+	Genode::Lock _exit_lock {};
+	
 	
 public:
-	Mon_manager::Connection _mon{_env};
-	static Child_destructor_thread _child_destructor;
+	int _target_socket;
 	//Sched_controller::Connection* _controller;
 };
