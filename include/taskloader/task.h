@@ -83,13 +83,15 @@ public:
 		Genode::Pd_session           &ref_pd()           override { return _env.pd(); }
 		Genode::Pd_session_capability ref_pd_cap() const override { return _env.pd_session_cap(); }	
 		// All methods below will be called from the child thread most of the time, and not the task-manager thread. Watch out for race conditions.
-		virtual void exit(int exit_value) override;
-		virtual Genode::Child_policy::Name name() const override;
+		void destruct();
+		void exit(int exit_value) override;
+		Genode::Child_policy::Name name() const override;
 		Genode::Service &resolve_session_request(Genode::Service::Name const &service_name, Genode::Session_state::Args const &args) override;
-		virtual void init(Genode::Pd_session &, Genode::Capability<Genode::Pd_session>) override;
-		virtual void init(Genode::Cpu_session &, Genode::Capability<Genode::Cpu_session>) override;
+		void init(Genode::Pd_session &, Genode::Capability<Genode::Pd_session>) override;
+		void init(Genode::Cpu_session &, Genode::Capability<Genode::Cpu_session>) override;
+		void resource_request(Genode::Parent::Resource_args const &args) override;
 		void announce_service(Genode::Service::Name const &service_name) override;
-		virtual bool active() const;
+		bool active() const;
 		Genode::Id_space<Genode::Parent::Server> &server_id_space() override {
 			return _session_requester.id_space(); }
 		
@@ -170,6 +172,7 @@ public:
 		unsigned int offset;
 		unsigned int number_of_jobs;
 		Genode::Ram_quota quota;
+		unsigned int caps;
 		std::string binary_name;
 	};
 	
@@ -210,7 +213,7 @@ public:
 
 	Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node);//, Sched_controller::Connection* ctrl);
 	// Warning: The Task dtor may be empty but tasks should be stopped before destroying them, preferably with a short wait inbetween to allow the child destructor thread to kill them properly.
-	virtual ~Task();
+	~Task();
 	Task(const Task&);
 	Task& operator = (const Task&);
 
