@@ -76,6 +76,10 @@ namespace Taskloader{
 	// Destruct all tasks.
 	void Taskloader::clear_tasks()
 	{
+		for (Task& task : _shared.tasks)
+		{
+			task.stop();
+		}
 		_shared.tasks.clear();
 	}
 
@@ -103,7 +107,7 @@ namespace Taskloader{
 		Genode::log("Stopping ", _shared.tasks.size()," task", _shared.tasks.size() == 1 ? "" : "s", ".");
 		for (Task& task : _shared.tasks)
 		{
-			task._kill(19);
+			task.stop();
 		}
 	}
 
