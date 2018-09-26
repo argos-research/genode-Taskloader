@@ -82,6 +82,11 @@ void Task::Child_policy::exit(int exit_value)
 			destruct();
 			break;
 		case 21:
+			type = Event::OUT_OF_CAPS;
+			_active=true;
+			soft_exit=true;
+			break;
+		case 22:
 			type = Event::OUT_OF_QUOTA;
 			_active=true;
 			soft_exit=true;
@@ -205,9 +210,14 @@ Genode::Service &Task::Child_policy::resolve_session_request(Genode::Service::Na
 	return find_service(_task._shared.parent_services, name);
 }
 
-void Task::Child_policy::resource_request(Genode::Parent::Resource_args const&)
+void Task::Child_policy::resource_request(Genode::Parent::Resource_args const &args)
 {
-	_task._meta->policy._child.exit(21);
+	char foo[3];
+	strncpy(foo,args.string(),3);
+	const char *cap="cap";
+	const char *ram="ram";
+	if(!strcmp(foo,cap)) _task._meta->policy._child.exit(21);
+	if(!strcmp(foo,ram)) _task._meta->policy._child.exit(22);
 }
 
 void Task::Child_policy::announce_service(Genode::Service::Name const &) 
@@ -238,6 +248,7 @@ const char* Task::Event::type_name(Type type)
 		case NOT_SCHEDULED: return "NOT_SCHEDULED";
 		case JOBS_DONE: return "JOBS_DONE";
 		case OUT_OF_QUOTA: return "OUT_OF_QUOTA";
+		case OUT_OF_CAPS: return "OUT_OF_CAPS";
 		default: return "UNKNOWN";
 	}
 }

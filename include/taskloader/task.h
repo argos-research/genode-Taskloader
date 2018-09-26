@@ -144,7 +144,7 @@ public:
 			bool managed {};
 			Managed_info managed_info {};
 		};
-		enum Type { START = 0, EXIT, EXIT_CRITICAL, EXIT_ERROR, EXIT_EXTERNAL, EXIT_PERIOD, EXTERNAL, NOT_SCHEDULED, JOBS_DONE, OUT_OF_QUOTA };
+		enum Type { START = 0, EXIT, EXIT_CRITICAL, EXIT_ERROR, EXIT_EXTERNAL, EXIT_PERIOD, EXTERNAL, NOT_SCHEDULED, JOBS_DONE, OUT_OF_QUOTA, OUT_OF_CAPS };
 
 		static const char* type_name(Type type);
 
