@@ -61,16 +61,11 @@ namespace Taskloader{
 	// Allocate and return a capability of a new dataspace to be used for a task binary.
 	Genode::Ram_dataspace_capability Taskloader::binary_ds(Genode::Ram_dataspace_capability name_ds_cap, size_t size)
 	{
-		Genode::Region_map* rm = &(_env.rm());
-		const char* name = rm->attach(name_ds_cap);
-		//Genode::log("Reserving ", size," bytes for binary ", name);
-		Genode::Ram_session* ram = &(_env.ram());
-
-		// Hoorray for C++ syntax. This basically forwards ctor arguments, constructing the dataspace in-place so there is no copy or dtor call involved which may invalidate the attached pointer.
-		// Also, emplace returns a <iterator, bool> pair indicating insertion success, so we need .first to get the map iterator and ->second to get the actual dataspace.
-		Genode::Attached_ram_dataspace& ds = _shared.binaries.emplace(std::piecewise_construct, std::make_tuple(name), std::make_tuple(ram, size)).first->second;
-		rm->detach(name);
-		return ds.cap();
+		Genode::Attached_ram_dataspace *bin_ds = new (&_heap) Genode::Attached_ram_dataspace(_env.ram(), _env.rm(), size);
+		const char* name = _env.rm().attach(name_ds_cap);
+		_shared.binaries.insert({name,bin_ds});
+		_env.rm().detach(name);
+		return bin_ds->cap();
 	}
 
 	// Destruct all tasks.
@@ -80,6 +75,7 @@ namespace Taskloader{
 		{
 			task.stop();
 		}
+		_shared.timer.msleep(1000);
 		_shared.tasks.clear();
 	}
 

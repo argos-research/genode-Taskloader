@@ -187,7 +187,7 @@ public:
 		Shared_data(Genode::Env &env, Task::Parent_services &parent_services, Task::Child_services &child_services, size_t trace_quota, size_t trace_buf_size);
 
 		// All binaries loaded by the task manager.
-		std::unordered_map<std::string, Genode::Attached_ram_dataspace> binaries;
+		std::unordered_map<std::string, Genode::Attached_ram_dataspace*> binaries;
 
 		// Heap on which to create the init child.
 		Genode::Heap heap { _env.ram(), _env.rm() };

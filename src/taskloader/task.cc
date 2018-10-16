@@ -8,7 +8,7 @@ Task::Child_policy::Child_policy(Genode::Env &env, Genode::Allocator &alloc, Tas
 	_session_requester(env.ep().rpc_ep(), _env.ram(), _env.rm()),
 	_task{task},
 	_config_policy{"config", task._config.cap(), &task._child_ep},
-	_binary_policy{name(), task._shared.binaries.at(task._desc.binary_name).cap(), &task._child_ep},
+	_binary_policy{name(), task._shared.binaries.at(task._desc.binary_name)->cap(), &task._child_ep},
 	_active{true},
 	soft_exit{false},
 	_child(_env.rm(), _env.ep().rpc_ep(), *this)
@@ -18,7 +18,7 @@ void Task::Child_policy::destruct()
 {
 	//unsigned long long before = _task._shared.timer.elapsed_ms();
 	//Genode::log("destruct");
-	_task._meta->policy._child.~Child();
+	_task._meta->~Meta_ex();
 	_task._meta = nullptr;
 	//unsigned long long after = _task._shared.timer.elapsed_ms();
 	//Genode::log("Destruct: ",after-before);
@@ -540,7 +540,7 @@ void Task::_start()
 		//type = Event::EXIT_PERIOD;
 		//Task::log_profile_data(type, _desc.id, _shared);
 		//Task::_child_destructor.submit_for_destruction(this);
-		_meta->policy._child.exit(20);
+		_kill(20);
 		return;
 	}
 
