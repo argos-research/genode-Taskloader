@@ -270,6 +270,7 @@ protected:
 	void _kill_crit();
 public:
 	void _kill(int exit_value = 1);
+	void send_profile();
 protected:
 	void _idle();
 	void _stop_timers();

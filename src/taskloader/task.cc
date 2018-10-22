@@ -24,6 +24,33 @@ void Task::Child_policy::destruct()
 	//Genode::log("Destruct: ",after-before);
 }
 
+void Task::send_profile()
+{
+	Dom0_server::Connection dom0{_env};
+	Genode::Attached_ram_dataspace _profile_data(_env.ram(),_env.rm(), 100000);
+	if(_shared.event_log.size())
+	{
+		Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
+		{
+
+			xml.node("events", [&]()
+			{
+				for (const Task::Event& event : _shared.event_log)
+				{
+					xml.node("event", [&]()
+					{
+						xml.attribute("type", Task::Event::type_name(event.type));
+						xml.attribute("task-id", std::to_string(event.task_id).c_str());
+						xml.attribute("time-stamp", std::to_string(event.time_stamp).c_str());
+					});
+				}
+			});
+		});
+		_shared.event_log.clear();
+	}
+	dom0.send_profile(_profile_data.cap());
+}
+
 void Task::Child_policy::exit(int exit_value)
 {
 	// Already exited, waiting for destruction.
@@ -32,6 +59,13 @@ void Task::Child_policy::exit(int exit_value)
 		return;
 	}
 	_active = false;
+
+	if(soft_exit)
+	{
+		soft_exit=false;
+		destruct();
+		return;
+	}
 
 	Task::Event::Type type;
 	switch (exit_value)
@@ -43,42 +77,16 @@ void Task::Child_policy::exit(int exit_value)
 			soft_exit=true;
 			break;
 		case 17:
-			if(!soft_exit)
-			{
-				type = Event::EXIT_CRITICAL;
-			}
-			else
-			{
-				soft_exit=false;
-				destruct();
-				return;
-			}
+
+			type = Event::EXIT_CRITICAL;
 			destruct();
 			break;
 		case 19:
-			if(!soft_exit)
-			{
-				type = Event::EXIT_EXTERNAL;
-			}
-			else
-			{
-				soft_exit=false;
-				destruct();
-				return;
-			}
+			type = Event::EXIT_EXTERNAL;
 			destruct();
 			break;
 		case 20:
-			if(!soft_exit)
-			{
-				type = Event::EXIT_PERIOD;
-			}
-			else
-			{
-				soft_exit=false;
-				destruct();
-				return;
-			}
+			type = Event::EXIT_PERIOD;
 			destruct();
 			break;
 		case 21:
@@ -92,17 +100,10 @@ void Task::Child_policy::exit(int exit_value)
 			soft_exit=true;
 			break;
 		default:
-			if(!soft_exit)
-			{
-				type = Event::EXIT_ERROR;
-			}
-			else
-			{
-				soft_exit=false;
-				destruct();
-				return;
-			}
+			type = Event::EXIT_ERROR;
 			destruct();
+			break;
+
 	}
 	
 	_task.log_profile_data(type, _task._desc.id, _task._shared);
@@ -110,31 +111,8 @@ void Task::Child_policy::exit(int exit_value)
 	{
 		type=Task::Event::JOBS_DONE;
 		_task.log_profile_data(type, _task._desc.id, _task._shared);
-		//_task._start_timer.trigger_periodic(10);
 	}
-	Dom0_server::Connection dom0{_env};
-	Genode::Attached_ram_dataspace _profile_data(_env.ram(),_env.rm(), 100000);
-	if(_task._shared.event_log.size())
-			{
-				Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
-				{
-
-					xml.node("events", [&]()
-					{
-						for (const Task::Event& event : _task._shared.event_log)
-						{
-							xml.node("event", [&]()
-							{
-								xml.attribute("type", Task::Event::type_name(event.type));
-								xml.attribute("task-id", std::to_string(event.task_id).c_str());
-								xml.attribute("time-stamp", std::to_string(event.time_stamp).c_str());
-							});
-						}
-					});
-				});
-				_task._shared.event_log.clear();
-			}
-	dom0.send_profile(_profile_data.cap());
+	_task.send_profile();
 	return;
 }
 
@@ -491,29 +469,7 @@ void Task::_start()
 		//trigger optimization to let all remaining tasks finish running
 		//_controller->scheduling_allowed(_name.c_str());
 		_kill(20);
-		Dom0_server::Connection dom0{_env};
-		Genode::Attached_ram_dataspace _profile_data(_env.ram(),_env.rm(), 100000);
-		if(_shared.event_log.size())
-				{
-					Genode::Xml_generator xml(_profile_data.local_addr<char>(), _profile_data.size(), "profile", [&]()
-					{
-
-						xml.node("events", [&]()
-						{
-							for (const Task::Event& event : _shared.event_log)
-							{
-								xml.node("event", [&]()
-								{
-									xml.attribute("type", Task::Event::type_name(event.type));
-									xml.attribute("task-id", std::to_string(event.task_id).c_str());
-									xml.attribute("time-stamp", std::to_string(event.time_stamp).c_str());
-								});
-							}
-						});
-					});
-					_shared.event_log.clear();
-				}
-		dom0.send_profile(_profile_data.cap());
+		send_profile();
 		return;
 	}
 	if(_desc.deadline>0)
