@@ -382,77 +382,17 @@ void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 	// Lock to avoid race conditions as this may be called by the child's thread.
 	Genode::Lock::Guard guard(shared.log_lock);
 
-	Genode::Trace::Subject_id subjects[MAX_NUM_SUBJECTS];
-	const size_t num_subjects = shared.trace.subjects(subjects, MAX_NUM_SUBJECTS);
-	Genode::Trace::CPU_info info;
-	Genode::Trace::RAM_info ram_info;
-
 	shared.event_log.emplace_back();
 	Event& event = shared.event_log.back();
 
 	event.type = type;
 	event.task_id = task_id;
 	event.time_stamp = shared.timer.elapsed_us()/1000;
-
-	Event::Task_info* task_manager_info = nullptr;
-
-	for (Genode::Trace::Subject_id* subject = subjects; subject < subjects + num_subjects; ++subject)
-	{
-		info = shared.trace.cpu_info(*subject);
-		ram_info = shared.trace.ram_info(*subject);
-		event.task_infos.emplace_back();
-		Event::Task_info& task_info = event.task_infos.back();
-
-		task_info.id = subject->id;
-		task_info.session = ram_info.session_label().string(),
-		task_info.thread = ram_info.thread_name().string(),
-		task_info.state = info.state(),
-		task_info.execution_time = info.execution_time().value;
-
-		// Check if the session is started by this task manager (i.e., a managed task).
-		size_t leaf_pos = task_info.session.rfind("task-manager -> ");
-		Task* task = nullptr;
-		if (leaf_pos < std::string::npos)
-		{
-			const std::string process = task_info.session.substr(leaf_pos + 16);
-			if (process == task_info.thread)
-			{
-				task = task_by_name(shared.tasks, task_info.session.substr(leaf_pos + 16));
-			}
-		}
-		if (task && task->running())
-		{
-			task_info.managed = true;
-			task_info.managed_info.id = task->_desc.id;
-			//task_info.managed_info.quota = task->_meta->pd.ram_quota().value;
-			//task_info.managed_info.used = task->_meta->pd.used_ram().value;
-			task_info.managed_info.iteration = task->_iteration;
-		}
-		// Check if this is task-manager itself.
-		else if (task_info.session.rfind("task-manager") == task_info.session.length() - 12 && task_info.thread == "task-manager")
-		{
-			task_info.managed = true;
-			task_info.managed_info.id = 0;
-			task_info.managed_info.quota = _env.ram().ram_quota().value;
-			task_info.managed_info.used = _env.ram().used_ram().value;
-			task_info.managed_info.iteration = 0;
-
-			// Hack: there are two task-manager processes. We only flag the more active one as managed.
-			if (!task_manager_info)
-			{
-				task_manager_info = &task_info;
-			}
-			else if (task_manager_info->execution_time < task_info.execution_time)
-			{
-				task_manager_info->managed = false;
-			}
-		}
-	}
 }
 void Task::Child_policy::wakeup_async_service() 
-		{
-			_session_requester.trigger_update();
-		}
+{
+	_session_requester.trigger_update();
+}
 
 std::string Task::_make_name() const
 {
