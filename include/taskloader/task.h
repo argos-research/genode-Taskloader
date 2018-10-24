@@ -80,6 +80,8 @@ public:
 		Child_policy(const Child_policy&);
 		Child_policy& operator = (const Child_policy&);
 		~Child_policy()	{ }
+		Genode::Affinity filter_session_affinity(Genode::Affinity const &affinity) override;
+		void filter_session_args(Genode::Service::Name const &, char *args, Genode::size_t args_len) override;
 		Genode::Pd_session           &ref_pd()           override { return _env.pd(); }
 		Genode::Pd_session_capability ref_pd_cap() const override { return _env.pd_session_cap(); }	
 		// All methods below will be called from the child thread most of the time, and not the task-manager thread. Watch out for race conditions.

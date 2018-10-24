@@ -12,7 +12,10 @@ Task::Child_policy::Child_policy(Genode::Env &env, Genode::Allocator &alloc, Tas
 	_active{true},
 	soft_exit{false},
 	_child(_env.rm(), _env.ep().rpc_ep(), *this)
-{ }
+{ 
+	const char* foo = (char*) _env.rm().attach(task._config.cap());
+	Genode::log(foo);
+}
 
 void Task::Child_policy::destruct()
 {
@@ -179,12 +182,15 @@ Genode::Service &Task::Child_policy::resolve_session_request(Genode::Service::Na
 
 	if ((service = _binary_policy.resolve_session_request(name.string(), args.string())))
 	{
+		Genode::log("binary ",name.string()," ", args.string());
 		return *service;
 	}
 	if ((service = _config_policy.resolve_session_request(name.string(), args.string())))
 	{
+		Genode::log("config ",name.string()," ", args.string());
 		return *service;
 	}
+	Genode::log("parent ",name.string()," ", args.string());
 	return find_service(_task._shared.parent_services, name);
 }
 
@@ -196,6 +202,20 @@ void Task::Child_policy::resource_request(Genode::Parent::Resource_args const &a
 	const char *ram="ram";
 	if(!strcmp(foo,cap)) _task._meta->policy._child.exit(21);
 	if(!strcmp(foo,ram)) _task._meta->policy._child.exit(22);
+}
+
+Genode::Affinity Task::Child_policy::filter_session_affinity(Genode::Affinity const &)
+{
+	return Genode::Affinity(Genode::Affinity::Space(1,1), Genode::Affinity::Location(1,0));
+}
+
+void Task::Child_policy::filter_session_args(Genode::Service::Name const &, char *, Genode::size_t )
+{
+	
+	/*char str[1024] = " priority=0x16";
+	args[args_len]=str[0];
+	const char* foo=args;
+	Genode::log("session args ",name.string()," ",foo," ",args_len+1024);*/
 }
 
 void Task::Child_policy::announce_service(Genode::Service::Name const &) 
@@ -378,7 +398,6 @@ Task* Task::task_by_name(std::list<Task>& tasks, const std::string& name)
 
 void Task::log_profile_data(Event::Type type, int task_id, Shared_data& shared)
 {
-	static const size_t MAX_NUM_SUBJECTS = 128;
 	// Lock to avoid race conditions as this may be called by the child's thread.
 	Genode::Lock::Guard guard(shared.log_lock);
 
@@ -432,10 +451,6 @@ void Task::_start()
 	if (running())
 	{
 		//Genode::log("Trying to start ",_name.c_str()," but previous instance still running or undestroyed. Abort.");
-		//Task::Event::Type type;
-		//type = Event::EXIT_PERIOD;
-		//Task::log_profile_data(type, _desc.id, _shared);
-		//Task::_child_destructor.submit_for_destruction(this);
 		_kill(20);
 		return;
 	}
@@ -447,10 +462,6 @@ void Task::_start()
 		PERR("Binary %s for task %s not found, possibly not yet received by dom0.", _desc.binary_name.c_str(), _name.c_str());
 		return;
 	}
-
-	//Genode::Attached_ram_dataspace& ds = bin_it->second;
-
-	
 
 	if ((size_t)_desc.quota.value < 512 * 1024)
 	{
@@ -465,7 +476,6 @@ void Task::_start()
 
 	// Abort if RAM quota insufficient. Alternatively, we could give all remaining quota to the child.
 	if (_desc.quota.value > _env.ram().avail_ram().value) {
-		//PERR("Not enough RAM quota for task %s, requested: %d, available: %d", _name.c_str(), (size_t)_desc.quota, _env.ram().avail_ram().value);
 		Genode::log("Not enough RAM quota for task" , _name.c_str(), "requested:",_desc.quota, "available:", _env.ram().avail_ram().value);
 		return;
 	}
