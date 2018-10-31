@@ -12,10 +12,7 @@ Task::Child_policy::Child_policy(Genode::Env &env, Genode::Allocator &alloc, Tas
 	_active{true},
 	soft_exit{false},
 	_child(_env.rm(), _env.ep().rpc_ep(), *this)
-{ 
-	const char* foo = (char*) _env.rm().attach(task._config.cap());
-	Genode::log(foo);
-}
+{ }
 
 void Task::Child_policy::destruct()
 {
@@ -182,15 +179,12 @@ Genode::Service &Task::Child_policy::resolve_session_request(Genode::Service::Na
 
 	if ((service = _binary_policy.resolve_session_request(name.string(), args.string())))
 	{
-		Genode::log("binary ",name.string()," ", args.string());
 		return *service;
 	}
 	if ((service = _config_policy.resolve_session_request(name.string(), args.string())))
 	{
-		Genode::log("config ",name.string()," ", args.string());
 		return *service;
 	}
-	Genode::log("parent ",name.string()," ", args.string());
 	return find_service(_task._shared.parent_services, name);
 }
 
@@ -204,18 +198,54 @@ void Task::Child_policy::resource_request(Genode::Parent::Resource_args const &a
 	if(!strcmp(foo,ram)) _task._meta->policy._child.exit(22);
 }
 
-Genode::Affinity Task::Child_policy::filter_session_affinity(Genode::Affinity const &)
+Genode::Affinity Task::Child_policy::filter_session_affinity(Genode::Affinity const &session_affinity)
 {
-	return Genode::Affinity(Genode::Affinity::Space(1,1), Genode::Affinity::Location(1,0));
+	Genode::Affinity::Space    const &child_space    = _task._affinity.space();
+	Genode::Affinity::Location const &child_location = _task._affinity.location();
+
+	/* check if no valid affinity space was specified */
+	if (session_affinity.space().total() == 0)
+		return Genode::Affinity(child_space, child_location);
+
+	Genode::Affinity::Space    const &session_space    = session_affinity.space();
+	Genode::Affinity::Location const &session_location = session_affinity.location();
+
+	/* scale resolution of resulting space */
+	Genode::Affinity::Space space(child_space.multiply(session_space));
+
+	/* subordinate session affinity to child affinity subspace */
+	Genode::Affinity::Location location(child_location
+	                            .multiply_position(session_space)
+	                            .transpose(session_location.xpos(),
+	                                       session_location.ypos()));
+
+	return Genode::Affinity(space, location);
 }
 
-void Task::Child_policy::filter_session_args(Genode::Service::Name const &, char *, Genode::size_t )
+void Task::Child_policy::filter_session_args(Genode::Service::Name const &service,
+                                      char *args, size_t args_len)
 {
+	long _priority=(long)_task._desc.priority;
 	
-	/*char str[1024] = " priority=0x16";
-	args[args_len]=str[0];
-	const char* foo=args;
-	Genode::log("session args ",name.string()," ",foo," ",args_len+1024);*/
+	long _prio_levels_log2 = Genode::log2(128);
+	if (service == Genode::Cpu_session::service_name() && _prio_levels_log2 > 0) {
+
+		unsigned long priority = Genode::Arg_string::find_arg(args, "priority").ulong_value(0);
+		/* clamp priority value to valid range */
+		priority = Genode::min((unsigned)Genode::Cpu_session::PRIORITY_LIMIT - 1, priority);
+
+		long discarded_prio_lsb_bits_mask = (1 << _prio_levels_log2) - 1;
+		if (priority & discarded_prio_lsb_bits_mask)
+			Genode::warning("priority band too small, losing least-significant priority bits");
+
+		/* assign child priority to the most significant priority bits */
+		
+		priority |= _priority*(Genode::Cpu_session::PRIORITY_LIMIT >> _prio_levels_log2);
+
+		/* override priority when delegating the session request to the parent */
+		Genode::String<64> value { Genode::Hex(priority) };
+		Genode::Arg_string::set_arg(args, args_len, "priority", value.string());
+	}
 }
 
 void Task::Child_policy::announce_service(Genode::Service::Name const &) 
@@ -277,7 +307,9 @@ Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node):
 			_get_node_value<unsigned int>(node, "numberofjobs"),
 			_get_node_value<Genode::Number_of_bytes>(node, "quota"),
 			_get_node_value<unsigned int>(node, "caps"),
-			_get_node_value(node, "pkg", 32, "")},
+			_get_node_value(node, "pkg", 32, ""),
+			_get_node_value<unsigned int>(node, "cores"),
+			_get_node_value<unsigned int>(node, "coreoffset")},
 		_config{_env.ram(), _env.rm(), node.sub_node("config").size()},
 		_name{_make_name()},
 		_iteration{0},
@@ -289,7 +321,8 @@ Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node):
 		_idle_dispatcher{_env.ep(), *this, &Task::_idle},
 		_child_ep{&_env.pd(), 12 * 1024, _name.c_str()},
 		_meta{nullptr},
-		_schedulable(true)//,
+		_schedulable(true),
+		_affinity{Genode::Affinity::Space{_desc.cores,1}, Genode::Affinity::Location{(int)_desc.coreoffset,0}}//,
 		//_controller(ctrl)
 {
 	const Genode::Xml_node& config_node = node.sub_node("config");

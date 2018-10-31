@@ -165,7 +165,6 @@ public:
 	struct Description
 	{
 		unsigned int id;
-		//int id;
 		unsigned int execution_time;
 		unsigned int critical_time;
 		unsigned long priority;
@@ -176,6 +175,8 @@ public:
 		Genode::Ram_quota quota;
 		unsigned int caps;
 		std::string binary_name;
+		unsigned int cores;
+		unsigned int coreoffset;
 	};
 	
 	typedef Genode::Registered<Genode::Parent_service> Parent_service;
@@ -296,6 +297,7 @@ protected:
 	std::string _get_node_value(const Genode::Xml_node& config_node, const char* type, size_t max_len, const std::string& default_val = "");
 private:
 	bool _schedulable;
+	Genode::Affinity _affinity;
 	Genode::Lock _exit_lock {};
 	
 	
