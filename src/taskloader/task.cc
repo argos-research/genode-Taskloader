@@ -163,13 +163,6 @@ void Task::Child_policy::init(Genode::Cpu_session &session, Genode::Capability<G
 	}
 	session.ref_account(_env.cpu_session_cap());
 	_env.cpu().transfer_quota(cap, need_adj);
-	/*
-	cpu{_env,
-	    task.name().c_str(),
-	    long(128-task._desc.priority)*(Genode::Cpu_session::PRIORITY_LIMIT >> Genode::log2(128)),
-	    unsigned(task._desc.deadline*1000),
-	    Genode::Affinity(Genode::Affinity::Space(4,1), Genode::Affinity::Location(1,0))
-	*/
 }
 
 
@@ -325,6 +318,15 @@ Task::Task(Genode::Env &env, Shared_data& shared, const Genode::Xml_node& node):
 		_affinity{Genode::Affinity::Space{_desc.cores,1}, Genode::Affinity::Location{(int)_desc.coreoffset,0}}//,
 		//_controller(ctrl)
 {
+	if(_desc.priority>127)
+	{
+		_desc.priority=0;
+	}
+	if(_desc.priority<=127)
+	{
+		_desc.deadline=0;
+	}
+	//child config
 	const Genode::Xml_node& config_node = node.sub_node("config");
 	std::strncpy(_config.local_addr<char>(), config_node.addr(), config_node.size());
 }
