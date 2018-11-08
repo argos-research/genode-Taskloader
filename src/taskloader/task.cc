@@ -398,7 +398,7 @@ void Task::run()
 
 void Task::stop()
 {
-	Genode::log("Stopping task ", _name.c_str());
+	//Genode::log("Stopping task ", _name.c_str());
 	_paused = true;
 	_stop_timers();
 	_kill(19);

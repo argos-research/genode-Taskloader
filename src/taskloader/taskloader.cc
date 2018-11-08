@@ -82,7 +82,7 @@ namespace Taskloader{
 	// Start idle tasks.
 	void Taskloader::start()
 	{
-		Genode::log("Starting ", _shared.tasks.size()," task", _shared.tasks.size() == 1 ? "" : "s", ".");
+		//Genode::log("Starting ", _shared.tasks.size()," task", _shared.tasks.size() == 1 ? "" : "s", ".");
 		for (Task& task : _shared.tasks)
 		{
 			if(task.isSchedulable())
@@ -100,7 +100,7 @@ namespace Taskloader{
 	// Stop all tasks.
 	void Taskloader::stop()
 	{
-		Genode::log("Stopping ", _shared.tasks.size()," task", _shared.tasks.size() == 1 ? "" : "s", ".");
+		//Genode::log("Stopping ", _shared.tasks.size()," task", _shared.tasks.size() == 1 ? "" : "s", ".");
 		for (Task& task : _shared.tasks)
 		{
 			task.stop();
@@ -109,7 +109,7 @@ namespace Taskloader{
 
 	Genode::Ram_dataspace_capability Taskloader::profile_data()
 	{
-		Genode::log("profile data");
+		//Genode::log("profile data");
 		_profile_data.realloc(&_env.ram(), _profile_ds_size());
 		/* There is some shitty race conditions going on, that produces empty logs */
 		if(_shared.event_log.size())
